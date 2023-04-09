@@ -1,5 +1,5 @@
 # spiral (Work-In-Progress)
-A framework for creating guide spirals for Large Language Models
+A framework for creating guided spirals for Large Language Models
 
 This project is designed to help with creating, formatting, and extracting data from text-based conversations with OpenAI language models. It includes the following key components:
 
