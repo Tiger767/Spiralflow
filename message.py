@@ -1,27 +1,37 @@
+import collections
+import copy
 from typing import Any, Callable, Dict, List, Optional, Set
 from abc import ABC, abstractmethod
-import copy
 import regex as re
+import json
 
 
-def extract_fstring_variables(text: str):
-    # Regex pattern to match expressions within curly braces
-    pattern = r"{(.*?)}"
-    matches = re.findall(pattern, text)
-
-    # Extract variable names from the expressions
-    variable_names = []
-    for match in matches:
-        # Remove any whitespace and split by any non-alphanumeric characters
-        var_names = re.split(r'\W+', match.strip())
-        
-        # Add any valid variable names to the list
-        for var_name in var_names:
-            if var_name.isidentifier():
-                variable_names.append(var_name)
-
+def extract_fstring_variables(text: str) -> List[str]:
+    pattern = r"{([a-zA-Z_][\w]*?(?:\.[a-zA-Z_]+)*?)}"
+    variable_names = re.findall(pattern, text)
     return variable_names
 
+
+def flatten_dict(d: dict, parent_key: str = '', sep: str = '_') -> dict:
+    """
+    Flatten a dictionary.
+    :param d: Dictionary to flatten.
+    :param parent_key: Parent key to use.
+    :param sep: Separator to use.
+    :return: Flattened dictionary.
+    """
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+class ExtractionError(Exception):
+    pass
 
 class Role:
     """
@@ -33,7 +43,7 @@ class Role:
 
 
 class Message(ABC):
-    def __init__(self, content_format: str, role: Optional[str] = None):
+    def __init__(self, content_format: str, role: Optional[str] = None) -> None:
         """
         :param content_format: A f-string format for the message content.
         :param role: Role associated with the message (default is None).
@@ -66,13 +76,13 @@ class Message(ABC):
         return self._role
 
     @role.setter
-    def role(self, role: str) -> None:
+    def role(self, role: str):
         if self._const:
             raise ValueError('Message is const')
         self._role = role
 
     @property
-    def variables(self) -> Dict[str, str]:
+    def variables(self) -> Dict[str, Any]:
         return copy.deepcopy(self._variables)
     
     @property
@@ -101,20 +111,26 @@ class Message(ABC):
         return super().__call__(**kwargs)
     
     def __str__(self) -> str:
+        """
+        :return: The message content if defined, otherwise the message content format.
+        """
         if self.defined():
             return self.content
         return self.content_format
 
 
 class InputMessage(Message):
-    def __init__(self, content_format: str, role: Optional[str] = Role.USER):
+    def __init__(self, content_format: str, role: Optional[str] = Role.USER, custom_insert_variables_func: Optional[Callable[[Dict[str, Any]], str]] = None):
         """
         :param content_format: A f-string format for the message content.
         :param role: Role associated with the message (default is None).
+        :param custom_insert_variables_func: A custom function to insert variables into the message content.
+                                             Takes the content_format and a dictionary of variables and returns the message content.
         """
         super().__init__(content_format, role)
+        self.custom_insert_variables_func = custom_insert_variables_func
 
-    def __call__(self,  **kwargs: Any) -> Any:
+    def __call__(self,  **kwargs: Any) -> str:
         """
         :param kwargs: A dictionary containing variable values.
         :return: The message content with inserted variables.
@@ -125,16 +141,18 @@ class InputMessage(Message):
         self._content = self.insert_variables(self._variables)
         return self.content
 
-    def insert_variables(self, variables) -> str:
+    def insert_variables(self, variables: Dict[str, Any]) -> str:
         """
         :param variables: A dictionary containing variable values.
         :return: The message content with inserted variables.
         """
+        if self.custom_insert_variables_func:
+            return self.custom_insert_variables_func(self._content_format, variables)
         return self._content_format.format(**variables)
 
 
 class OutputMessage(Message):
-    def __init__(self, content_format: str, role: Optional[str] = Role.ASSISTANT, custom_extract_variables_func: Optional[Callable[[List[str], str, str], Dict[str, str]]] = None):
+    def __init__(self, content_format: str, role: Optional[str] = Role.ASSISTANT, custom_extract_variables_func: Optional[Callable[[List[str], str, str], Dict[str, Any]]] = None):
         """
         :param content_format: A f-string format for the message content.
         :param role: Role associated with the message (default is None).
@@ -145,7 +163,7 @@ class OutputMessage(Message):
         super().__init__(content_format, role)
         self.custom_extract_variables_func = custom_extract_variables_func
 
-    def __call__(self, **kwargs: Any) -> Any:
+    def __call__(self, **kwargs: Any) -> Dict[str, Any]:
         """
         :param kwargs: A dictionary containing the message content.
         :return: A dictionary containing the extracted variables.
@@ -156,7 +174,7 @@ class OutputMessage(Message):
         self._variables = self.extract_variables(self._content)
         return self.variables
 
-    def extract_variables(self, content) -> Dict[str, str]:
+    def extract_variables(self, content) -> Dict[str, Any]:
         """
         :param content: The message content to extract variables from.
         :return: A dictionary containing the extracted variables.
@@ -168,5 +186,48 @@ class OutputMessage(Message):
             pattern = re.escape(self._content_format).replace('\\{', '{').replace('\\}', '}').format(**{name: '(?P<{}>[\s\S]*)'.format(name) for name in names})
             result = re.match(pattern, content)
             if result is None:
-                return None
+                raise ValueError('Could not extract variables from message content')
             return result.groupdict()
+
+
+class InputJSONMessage(InputMessage):
+    def __init__(self, content_format: str, role: Optional[str] = Role.USER):
+        super().__init__(content_format, role, custom_insert_variables_func=self.insert_variables_into_json)
+        self._varnames = set(varname.split('.', 1)[0] for varname in self._variables)
+
+    def insert_variables_into_json(self, content_format: str, variables: Dict[str, Any]) -> str:
+        """
+        :param content_format: The message content format.
+        :param variables: A dictionary containing variable values.
+        :return: The message content with inserted variables.
+        """
+        variables = flatten_dict(variables)
+        print(content_format)
+        content_format = content_format.replace('.', '_') # TEMP FIX!!
+        return content_format.format(**variables)
+
+
+class OutputJSONMessage(OutputMessage):
+    def __init__(self, content_format: str, role: Optional[str] = Role.ASSISTANT):
+        super().__init__(content_format, role, custom_extract_variables_func=self.extract_variables_from_json)
+
+    def extract_variables_from_json(self, names: List[str], content_format: str, content: str) -> Dict[str, Any]:
+        """
+        :param names: A list of variable names.
+        :param content_format: The message content format.
+        :param content: The message content to extract variables from.
+        :return: A dictionary containing the extracted variables.
+        """
+        pattern = re.escape(content_format).replace('\\{', '{').replace('\\}', '}').format(**{name: '(?P<{}>[\s\S]*)'.format(name) for name in names})
+        result = re.match(pattern, content)
+        if result is None:
+            raise ExtractionError('Could not extract variables from JSON message content.')
+        variables = result.groupdict()
+
+        json_variables = {}
+        try:
+            for varname, varvalue in variables.items():
+                json_variables[varname] = json.loads(varvalue)
+        except json.JSONDecodeError:
+            raise ExtractionError('Could not decode variables from JSON message content.')
+        return json_variables
