@@ -53,7 +53,7 @@ class SimpleChatFlow:
 
         messages = []
         if input_chat_history is not None:
-            for message in self.input_chat_history.messages:
+            for message in input_chat_history.messages:
                 messages.append({'role': message.role, 'content': message.content})
 
         internal_chat_history = ChatHistory()
@@ -137,10 +137,16 @@ class ChatFlow(SimpleChatFlow):
 
     @property
     def input_varnames(self):
+        """
+        :return: A deepcopy of input variable names.
+        """
         return copy.deepcopy(self._input_varnames[0])
     
     @property
     def output_varnames(self):
+        """
+        :return: A deepcopy of output variable names.
+        """
         return copy.deepcopy(self._output_varnames[-1])
 
     def flow(self, chat_llm: ChatLLM, input_variables: dict, input_chat_history: Optional[ChatHistory] = None) -> Tuple[Dict[str, str], List[ChatHistory]]:
@@ -201,6 +207,7 @@ class ChatFlow(SimpleChatFlow):
         :param chat_llm: The chat language model to use for the chat flow.
         :param input_variables: Dictionary of input variables.
         :param input_chat_history: Optional input chat history.
+        :param return_all: If True, return all variables. If False, return only output variables.
         :return: Tuple of dictionary of output variables and chat history.
         """
         all_variables, internal_chat_histories = self.flow(chat_llm, input_variables, input_chat_history)
