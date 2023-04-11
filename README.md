@@ -1,14 +1,19 @@
 # spiral (Work-In-Progress)
 A framework for creating guided spirals for Large Language Models
 
-This project is designed to help with creating, formatting, and extracting data from text-based conversations with OpenAI language models. It includes the following key components:
+This project is designed to help with creating, formatting, and extracting data from text-based conversations with OpenAI language models to allow for more complicated ideas such as Flows and Spirals. It includes the following key components:
 
 *   `Message`: A base class representing a message with content, role, and variables.
 *   `InputMessage`: A class to create input messages with pre-defined content formats.
 *   `OutputMessage`: A class to create output messages and extract variables from them.
+*   `InputJSONMessage`: A class to create input messages with pre-defined content formats that are able to access Dict variables.
+*   `OutputJSONMessage`: A class to create output messages and extract JSON formated dict variables from them.
 *   `ChatLLM`: A class to interface with OpenAI's chat models.
 *   `ChatHistory`: A class to store a sequence of messages in a conversation.
 *   `ChatFlow`: A class to represent a conversation flow, combining input and output messages.
+*   `ChatFlows`: A class to represent ultiple conversation flows, flowing sequentially.
+*   `ConditonalChatFlow`: A class to represent a conversation flow with multiple branches that depend on an output of a flow.
+*   `ChatFlowManager`: A class to manage multiple chat flows with their llms and conversation histories.
 
 Installation
 ------------
@@ -28,7 +33,7 @@ Here is a quick example to demonstrate how to use the project:
 from message import Role, InputMessage, OutputMessage, InputJSONMessage, OutputJSONMessage
 from chat_llm import ChatLLM
 from chat_history import ChatHistory
-from chat_flow import ChatFlow
+from flow import ChatFlow
 
 
 # Create input and output messages
