@@ -112,7 +112,7 @@ class Message(ABC):
     
     @property
     def varnames(self) -> Set[str]:
-        return copy.deepcopy(self._varnames)
+        return set(self._varnames)
 
     def defined(self) -> bool:
         """
