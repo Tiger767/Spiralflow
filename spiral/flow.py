@@ -404,10 +404,62 @@ class ChatFlows(ChatFlow):
         output_variables = {}
         chat_histories = []
         for chat_flow in self._chat_flows:
+            # does not adjust chat history - need to add option in init
             chat_flow_output_variables, chat_flow_chat_histories = chat_flow(chat_llm, input_variables, input_chat_history)
             output_variables.update(chat_flow_output_variables)
             chat_histories += chat_flow_chat_histories
         return output_variables, chat_histories
+
+
+class ChatSpiral(ChatFlow):
+    class Exit(Exception):
+        pass
+
+    def __init__(self, chat_flow: ChatFlow, input_variables: dict, output_varnames_remap: Optional[Dict[str, str]] = None) -> None:
+        self._chat_flow = chat_flow
+        self._input_variables = input_variables
+        self._output_varnames_remap = output_varnames_remap
+
+        self._output_varnames = self._chat_flow.output_varnames
+
+    @property
+    def input_varnames(self) -> Set[str]:
+        return set(self._input_variables.keys())
+    
+    @property
+    def output_varnames(self) -> Set[str]:
+        return set(self._output_varnames)
+
+    def flow(self, chat_llm: ChatLLM, input_variables: dict, input_chat_history: Optional[ChatHistory] = None) -> Tuple[Dict[str, str], List[ChatHistory]]:
+        """
+        Runs the chat flow through an LLM.
+
+        :param chat_llm: The chat language model to use for the chat flow.
+        :param input_variables: Dictionary of input variables.
+        :param input_chat_history: Optional input chat history.
+        :return: Tuple of dictionary of output variables and list of chat histories.
+        """
+        output_variables, chat_history = self._chat_flow(chat_llm, input_variables, input_chat_history)
+        if self._output_varnames_remap is not None:
+            output_variables = {self._output_varnames_remap.get(k, k): v for k, v in output_variables.items()}
+        return output_variables, chat_history
+
+    def spiral(self, chat_llm: ChatLLM) -> Tuple[Dict[str, str], ChatHistory]:
+        variables = {}
+        chat_history = ChatHistory()
+        try:
+            while True:
+                new_variables, new_internal_history = self.flow(chat_llm, variables, chat_history)
+                variables.update(new_variables)
+                chat_history = ChatHistory(chat_history.messages + new_internal_history.messages)
+        except ChatSpiral.Exit:
+            return variables, chat_history
+
+    def __call__(self, chat_llm: ChatLLM, return_all: bool = True) -> Tuple[Dict[str, str], ChatHistory]:
+        variables, chat_history = self.spiral(chat_llm)
+        if not return_all:
+            variables = {k: v for k, v in variables.items() if k in self.output_varnames}
+        return variables, chat_history
 
 
 class ChatFlowManager:
@@ -420,29 +472,29 @@ class ChatFlowManager:
         A class for adding mapping information to a chat flow.
         """
         
-        def __init__(self, name, chat_flow: ChatFlow, input_varnames_map: Optional[Dict[str, str]] = None,
-                     output_varnames_map: Optional[Dict[str, str]] = None,
-                     input_chat_history_map: Optional[List[Dict[str, Any]]] = None):
+        def __init__(self, name, chat_flow: ChatFlow, input_varnames_remap: Optional[Dict[str, str]] = None,
+                     output_varnames_remap: Optional[Dict[str, str]] = None,
+                     input_chat_history_remap: Optional[List[Dict[str, Any]]] = None):
             """
             Initializes a ChatFlowNode.
 
             :param name: Name of the chat flow.
             :param chat_flow: Chat flow.
-            :param input_varnames_map: Optional dictionary of input variable names to map to the chat flow.
-            :param output_varnames_map: Optional dictionary of output variable names to map to the chat flow.
-            :param input_chat_history_map: Optional list of dictionaries of input chat history metadata to map to the chat flow.
+            :param input_varnames_remap: Optional dictionary of input variable names to remap to the chat flow.
+            :param output_varnames_remap: Optional dictionary of output variable names to remap to the chat flow.
+            :param input_chat_history_remap: Optional list of dictionaries of input chat history metadata to remap to the chat flow.
             """
             self.name = name
             self.chat_flow = chat_flow
-            self.input_varnames_map = {} if input_varnames_map is None else input_varnames_map
-            self.output_varnames_map = {} if output_varnames_map is None else output_varnames_map
-            self.input_chat_history_map = {} if input_chat_history_map is None else input_chat_history_map
+            self.input_varnames_remap = {} if input_varnames_remap is None else input_varnames_remap
+            self.output_varnames_remap = {} if output_varnames_remap is None else output_varnames_remap
+            self.input_chat_history_remap = {} if input_chat_history_remap is None else input_chat_history_remap
 
-            for value in self.input_varnames_map.values():
+            for value in self.input_varnames_remap.values():
                 if value not in self.chat_flow.input_varnames:
                     raise ValueError(f"Invalid input map value. {value} not in chat flow input. Expected one of {self.chat_flow.input_varnames}")
 
-            for key in self.output_varnames_map:
+            for key in self.output_varnames_remap:
                 if key not in self.chat_flow.output_varnames:
                     raise ValueError(f"Invalid output map key. {key} not in chat flow output. Expected one of {self.chat_flow.output_varnames}")
 
@@ -455,10 +507,10 @@ class ChatFlowManager:
             :param input_chat_histories: Dictionary of input chat histories.
             :return: Tuple of dictionary of output variables and chat histories.
             """
-            input_variables = {self.input_varnames_map.get(varname, varname): varvalue for varname, varvalue in input_variables.items()}
+            input_variables = {self.input_varnames_remap.get(varname, varname): varvalue for varname, varvalue in input_variables.items()}
             
             messages = []
-            for history_metadata in self.input_chat_history_map:
+            for history_metadata in self.input_chat_history_remap:
                 chat_histories = input_chat_histories[history_metadata['name']]
                 chat_history = chat_histories[history_metadata['type']]
                 ndxs = history_metadata['ndxs'] if 'ndxs' in history_metadata else range(len(chat_history.messages))
@@ -469,7 +521,7 @@ class ChatFlowManager:
 
             output_variables, chat_histories = self.chat_flow(chat_llm, input_variables, input_chat_history)
 
-            output_variables = {self.output_varnames_map.get(varname, varname): varvalue for varname, varvalue in output_variables.items()}
+            output_variables = {self.output_varnames_remap.get(varname, varname): varvalue for varname, varvalue in output_variables.items()}
             
             return output_variables, chat_histories
 
@@ -485,8 +537,8 @@ class ChatFlowManager:
         all_input_varnames = set()
 
         for node in self.chat_flows_nodes:
-            node_input_varnames = set(node.input_varnames_map.keys())  # maps do not have to contain all values so not full check
-            node_output_varnames = set(node.output_varnames_map.values())  # ditto
+            node_input_varnames = set(node.input_varnames_remap.keys())  # maps do not have to contain all values so not full check
+            node_output_varnames = set(node.output_varnames_remap.values())  # ditto
 
             self._output_varnames.extend(node_output_varnames)
             all_input_varnames.update(node_input_varnames)
