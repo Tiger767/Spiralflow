@@ -30,7 +30,13 @@ Usage
 Here is a quick example to demonstrate how to use the project:
 
 ```python
-from message import Role, InputMessage, OutputMessage, InputJSONMessage, OutputJSONMessage
+from message import (
+    Role,
+    InputMessage,
+    OutputMessage,
+    InputJSONMessage,
+    OutputJSONMessage,
+)
 from chat_llm import ChatLLM
 from chat_history import ChatHistory
 from flow import ChatFlow
@@ -51,26 +57,30 @@ chat_flow = ChatFlow.from_dicts([
 ], verbose=False)
 
 # Initialize the ChatLLM with the desired OpenAI model
-chat_llm = ChatLLM(gpt_model='gpt-3.5-turbo', temperature=.3)
+chat_llm = ChatLLM(gpt_model="gpt-3.5-turbo", temperature=0.3)
 
 # Define input variables for the ChatFlow
-input_variables = {'country1': 'France', 'country2': 'Spain'}
+input_variables = {"country1": "France", "country2": "Spain"}
 
 # Starting conversation
-input_chat_history = ChatHistory([
-    InputMessage('What is the capital of Mexico?'),
-    OutputMessage('The capital of Mexico is Mexico City.'),
-    InputMessage('What is the capital of United States?'),
-    OutputMessage('The capital of United States is Washington, D.C.'),
-])
+input_chat_history = ChatHistory(
+    [
+        InputMessage("What is the capital of Mexico?"),
+        OutputMessage("The capital of Mexico is Mexico City."),
+        InputMessage("What is the capital of United States?"),
+        OutputMessage("The capital of United States is Washington, D.C."),
+    ]
+)
 
 # Execute the ChatFlow and obtain the extracted variables and chat history
-variables, internal_chat_history = chat_flow(chat_llm, input_variables, input_chat_history=input_chat_history)
+variables, history = chat_flow(
+    input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
+)
 
-print('Extracted Variables:', variables)
-print('Chat History:')
-for message in (input_chat_history.messages + internal_chat_history.messages):
-    print(f'{message.role.title()}: {message.content}')
+print("Extracted Variables:", variables)
+print("Chat History:")
+for message in history.messages:
+    print(f"{message.role.title()}: {message.content}")
 ```
 
 This will output:

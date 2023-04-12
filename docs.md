@@ -26,6 +26,21 @@ Initializes the ChatHistory class with the given parameters.
 
 - `messages`: The messages to initialize the chat history with.
 
+<a id="chat_history.ChatHistory.messages"></a>
+
+#### messages
+
+```python
+@property
+def messages() -> List[Message]
+```
+
+Gets the messages in the chat history.
+
+**Returns**:
+
+The messages in the chat history.
+
 <a id="chat_history.ChatHistory.add_message"></a>
 
 #### add\_message
@@ -39,6 +54,30 @@ Adds a message made constant to the chat history.
 **Arguments**:
 
 - `message`: The message to add to the chat history.
+
+<a id="chat_history.ChatHistory.make_const"></a>
+
+#### make\_const
+
+```python
+def make_const() -> None
+```
+
+Makes this chat history constant so messages cannot be added.
+
+<a id="chat_history.ChatHistory.get_const"></a>
+
+#### get\_const
+
+```python
+def get_const() -> Any
+```
+
+Creates a deepcopy of self and makes it constant.
+
+**Returns**:
+
+A deepcopy of this chat history made constant so messages cannot be added
 
 <a id="chat_llm"></a>
 
@@ -59,7 +98,7 @@ A class for chat completion using the GPT model.
 #### \_\_init\_\_
 
 ```python
-def __init__(gpt_model: str = 'gpt-3.5-turbo', stream=False, **kwargs) -> None
+def __init__(gpt_model: str = "gpt-3.5-turbo", stream=False, **kwargs) -> None
 ```
 
 Initializes the ChatLLM class with the given parameters.
@@ -91,6 +130,24 @@ Response from the chat completion with content, role, and metadata.
 
 # flow
 
+<a id="flow.combine_chat_histories"></a>
+
+#### combine\_chat\_histories
+
+```python
+def combine_chat_histories(chat_histories)
+```
+
+Combines a list of chat histories into one chat history.
+
+**Arguments**:
+
+- `chat_histories`: List of chat histories to combine.
+
+**Returns**:
+
+Combined chat history.
+
 <a id="flow.BaseFlow"></a>
 
 ## BaseFlow Objects
@@ -120,6 +177,7 @@ Limitations:
 
 ```python
 def __init__(messages: List[Message],
+             default_chat_llm: Optional[ChatLLM] = None,
              default_input_chat_history: Optional[ChatHistory] = None,
              verbose: bool = False) -> None
 ```
@@ -129,8 +187,37 @@ Initializes the ChatFlow class with the given parameters.
 **Arguments**:
 
 - `messages`: List of messages in the chat flow.
+- `default_chat_llm`: Optional default chat llm used in flow, if not provided in flow call.
 - `default_input_chat_history`: Optional default input chat history used in flow, if not provided in flow call.
 - `verbose`: Whether to print verbose output.
+
+<a id="flow.ChatFlow.verbose"></a>
+
+#### verbose
+
+```python
+@property
+def verbose()
+```
+
+**Returns**:
+
+Whether the flow is verbose.
+
+<a id="flow.ChatFlow.verbose"></a>
+
+#### verbose
+
+```python
+@verbose.setter
+def verbose(verbose: bool)
+```
+
+Sets the verbose attribute.
+
+**Arguments**:
+
+- `verbose`: Whether the flow is verbose.
 
 <a id="flow.ChatFlow.input_varnames"></a>
 
@@ -164,31 +251,31 @@ A deepcopy of output variable names.
 
 ```python
 def flow(
-    chat_llm: ChatLLM,
     input_variables: dict,
+    chat_llm: Optional[ChatLLM] = None,
     input_chat_history: Optional[ChatHistory] = None
-) -> Tuple[Dict[str, str], List[ChatHistory]]
+) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]
 ```
 
 Runs the chat flow through an LLM.
 
 **Arguments**:
 
-- `chat_llm`: The chat language model to use for the chat flow.
 - `input_variables`: Dictionary of input variables.
+- `chat_llm`: Optional chat language model to use for the chat flow.
 - `input_chat_history`: Optional input chat history.
 
 **Returns**:
 
-Tuple of dictionary of output variables and chat histories.
+Tuple of dictionary of output variables and a tuple of input and internal chat histories.
 
 <a id="flow.ChatFlow.__call__"></a>
 
 #### \_\_call\_\_
 
 ```python
-def __call__(chat_llm: ChatLLM,
-             input_variables: dict,
+def __call__(input_variables: dict,
+             chat_llm: Optional[ChatLLM] = None,
              input_chat_history: Optional[ChatHistory] = None,
              return_all: bool = True) -> Tuple[Dict[str, str], ChatHistory]
 ```
@@ -197,14 +284,35 @@ Runs the chat flow through an LLM.
 
 **Arguments**:
 
-- `chat_llm`: The chat language model to use for the chat flow.
 - `input_variables`: Dictionary of input variables.
+- `chat_llm`: Optional chat language model to use for the chat flow.
 - `input_chat_history`: Optional input chat history.
 - `return_all`: If True, return all variables. If False, return only output variables.
 
 **Returns**:
 
 Tuple of dictionary of output variables and chat history.
+
+<a id="flow.ChatFlow.compress_histories"></a>
+
+#### compress\_histories
+
+```python
+def compress_histories(
+    histories: Tuple[List[ChatHistory], List[ChatHistory]]
+) -> Tuple[ChatHistory, ChatHistory]
+```
+
+Combines a tuple of list of chat histories into a tuple of two chat histories.
+
+**Arguments**:
+
+- `input_histories`: List of input chat histories.
+- `internal_histories`: List of internal chat histories.
+
+**Returns**:
+
+Tuple of combined input and internal chat histories.
 
 <a id="flow.ChatFlow.from_dicts"></a>
 
@@ -240,10 +348,12 @@ A class for creating chat flows from functions.
 #### \_\_init\_\_
 
 ```python
-def __init__(func: Callable[[ChatLLM, dict, Optional[ChatHistory]],
-                            Tuple[Dict[str, str], List[ChatHistory]]],
+def __init__(func: Callable[[dict, Optional[ChatLLM], Optional[ChatHistory]],
+                            Tuple[Dict[str, str], Tuple[List[ChatHistory],
+                                                        List[ChatHistory]]], ],
              input_varnames: Set[str],
              output_varnames: Set[str],
+             default_chat_llm: Optional[ChatHistory] = None,
              default_input_chat_history: Optional[ChatHistory] = None,
              verbose: bool = False) -> None
 ```
@@ -255,7 +365,8 @@ Initializes a FuncChatFlow.
 - `func`: Function to use for the chat flow.
 - `input_varnames`: List of input variable names.
 - `output_varnames`: List of output variable names.
-- `default_input_chat_history`: Optional default input chat history used in flow, if not provided in
+- `default_chat_llm`: Optional default chat language model used in flow, if not provided in.
+- `default_input_chat_history`: Optional default input chat history used in flow, if not provided in.
 - `verbose`: If True, print chat flow steps.
 
 <a id="flow.FuncChatFlow.flow"></a>
@@ -264,23 +375,123 @@ Initializes a FuncChatFlow.
 
 ```python
 def flow(
-    chat_llm: ChatLLM,
     input_variables: dict,
+    chat_llm: Optional[ChatLLM] = None,
     input_chat_history: Optional[ChatHistory] = None
-) -> Tuple[Dict[str, str], List[ChatHistory]]
+) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]
 ```
 
 Runs the chat flow through an LLM.
 
 **Arguments**:
 
-- `chat_llm`: The chat language model to use for the chat flow.
 - `input_variables`: Dictionary of input variables.
+- `chat_llm`: Optional chat language model to use for the chat flow.
 - `input_chat_history`: Optional input chat history.
 
 **Returns**:
 
-Tuple of dictionary of output variables and chat histories.
+Tuple of dictionary of output variables and a tuple of input and internal chat histories.
+
+<a id="flow.MemoryChatFlow"></a>
+
+## MemoryChatFlow Objects
+
+```python
+class MemoryChatFlow(ChatFlow)
+```
+
+A class for creating chat flows that interact with external memories
+
+<a id="flow.MemoryChatFlow.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(chat_flow: ChatFlow,
+             default_chat_llm: Optional[ChatLLM] = None,
+             default_input_chat_history: Optional[ChatHistory] = None,
+             verbose: bool = False) -> None
+```
+
+Initializes a MemoryChatFlow from a ChatFlow.
+
+**Arguments**:
+
+- `chat_flow`: ChatFlow to used for the chat flow and to get the query
+- `default_chat_llm`: Optional default chat language model used in flow, if not provided in.
+- `default_input_chat_history`: Optional default input chat history used in flow, if not provided in.
+- `verbose`: If True, print chat flow steps.
+
+<a id="flow.MemoryChatFlow.verbose"></a>
+
+#### verbose
+
+```python
+@property
+def verbose()
+```
+
+**Returns**:
+
+Whether the flow is verbose.
+
+<a id="flow.MemoryChatFlow.verbose"></a>
+
+#### verbose
+
+```python
+@verbose.setter
+def verbose(verbose: bool)
+```
+
+Sets the verbose attribute.
+
+**Arguments**:
+
+- `verbose`: Whether the flow is verbose.
+
+<a id="flow.MemoryChatFlow.flow"></a>
+
+#### flow
+
+```python
+def flow(
+    input_variables: dict,
+    chat_llm: Optional[ChatLLM] = None,
+    input_chat_history: Optional[ChatHistory] = None
+) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]
+```
+
+Runs the chat flow through an LLM and gets a query which is used to get memory from external memories.
+
+**Arguments**:
+
+- `input_variables`: Dictionary of input variables.
+- `chat_llm`: Optional chat language model to use for the chat flow.
+- `input_chat_history`: Optional input chat history.
+
+**Returns**:
+
+Tuple of dictionary of output variables and a tuple of input and internal chat histories.
+
+<a id="flow.MemoryChatFlow.query_memory"></a>
+
+#### query\_memory
+
+```python
+def query_memory(query: str) -> str
+```
+
+Queries the memory with the given query.
+
+**Arguments**:
+
+- `query`: Query to use to get memory.
+
+**Returns**:
+
+Memory obtained from external memories.
 
 <a id="flow.ConditonalChatFlow"></a>
 
@@ -301,6 +512,7 @@ def __init__(decision_chat_flow: ChatFlow,
              branch_chat_flows: Dict[str, ChatFlow],
              share_input_history: bool = True,
              share_internal_history: bool = True,
+             default_chat_llm: Optional[ChatLLM] = None,
              default_input_chat_history: Optional[ChatHistory] = None,
              verbose: bool = False)
 ```
@@ -313,8 +525,37 @@ Initializes a ConditonalChatFlow.
 - `branch_chat_flows`: Dictionary of chat flows for each branch.
 - `share_input_history`: If True, share the input chat history between the decision and branch chat flows.
 - `share_internal_history`: If True, share the internal chat history between the decision and branch chat flows.
+- `default_chat_llm`: Optional default chat language model used in flow, if not provided in flow call.
 - `default_input_chat_history`: Optional default input chat history used in flow, if not provided in flow call.
 - `verbose`: If True, print chat flow messages.
+
+<a id="flow.ConditonalChatFlow.verbose"></a>
+
+#### verbose
+
+```python
+@property
+def verbose()
+```
+
+**Returns**:
+
+Whether the flow is verbose.
+
+<a id="flow.ConditonalChatFlow.verbose"></a>
+
+#### verbose
+
+```python
+@verbose.setter
+def verbose(verbose: bool)
+```
+
+Sets the verbose attribute.
+
+**Arguments**:
+
+- `verbose`: Whether the flow is verbose.
 
 <a id="flow.ConditonalChatFlow.flow"></a>
 
@@ -322,55 +563,334 @@ Initializes a ConditonalChatFlow.
 
 ```python
 def flow(
-    chat_llm: ChatLLM,
     input_variables: dict,
+    chat_llm: Optional[ChatLLM] = None,
     input_chat_history: Optional[ChatHistory] = None
-) -> Tuple[Dict[str, str], List[ChatHistory]]
+) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]
 ```
 
 Runs the decision chat flow through an LLM and then from the decision the appropriate branch.
 
 **Arguments**:
 
-- `chat_llm`: The chat language model to use for the chat flow.
 - `input_variables`: Dictionary of input variables.
+- `chat_llm`: Optional chat language model to use for the chat flow.
 - `input_chat_history`: Optional input chat history.
 
 **Returns**:
 
-Tuple of dictionary of output variables and list of chat histories.
+Tuple of dictionary of output variables and a tuple of input and internal chat histories.
 
-<a id="flow.ChatFlows"></a>
+<a id="flow.ConditonalChatFlow.compress_histories"></a>
 
-## ChatFlows Objects
+#### compress\_histories
 
 ```python
-class ChatFlows(ChatFlow)
+def compress_histories(
+    histories: Tuple[List[ChatHistory], List[ChatHistory]]
+) -> Tuple[ChatHistory, ChatHistory]
 ```
 
-<a id="flow.ChatFlows.flow"></a>
+Combines a tuple of list of chat histories into a tuple of two chat histories.
+
+**Arguments**:
+
+- `input_histories`: List of input chat histories.
+- `internal_histories`: List of internal chat histories.
+
+**Returns**:
+
+Tuple of combined input and internal chat histories.
+
+<a id="flow.SequentialChatFlows"></a>
+
+## SequentialChatFlows Objects
+
+```python
+class SequentialChatFlows(ChatFlow)
+```
+
+A sequential chat flow class that runs a list of chat flows sequentially.
+
+Limitations:
+ - All chat flows use the input history returned by the first chat flow plus internal of previous chat flows.
+
+<a id="flow.SequentialChatFlows.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(chat_flows: List[ChatFlow],
+             default_chat_llm: Optional[ChatLLM] = None,
+             default_input_chat_history: Optional[ChatHistory] = None,
+             verbose: bool = False) -> None
+```
+
+Initializes a seqeuntial chat flows class.
+
+**Arguments**:
+
+- `chat_flows`: List of chat flows to run sequentially.
+- `default_chat_llm`: Optional default chat language model used in flow, if not provided in flow call.
+- `default_input_chat_history`: Optional default input chat history used in flow, if not provided in flow call.
+- `verbose`: If True, print chat flow messages.
+
+<a id="flow.SequentialChatFlows.verbose"></a>
+
+#### verbose
+
+```python
+@property
+def verbose()
+```
+
+**Returns**:
+
+Whether the flow is verbose.
+
+<a id="flow.SequentialChatFlows.verbose"></a>
+
+#### verbose
+
+```python
+@verbose.setter
+def verbose(verbose: bool)
+```
+
+Sets the verbose attribute.
+
+**Arguments**:
+
+- `verbose`: Whether the flow is verbose.
+
+<a id="flow.SequentialChatFlows.flow"></a>
 
 #### flow
 
 ```python
 def flow(
-    chat_llm: ChatLLM,
     input_variables: dict,
+    chat_llm: Optional[ChatLLM] = None,
     input_chat_history: Optional[ChatHistory] = None
-) -> Tuple[Dict[str, str], List[ChatHistory]]
+) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]
 ```
 
 Runs the chat flows through an LLM.
 
 **Arguments**:
 
-- `chat_llm`: The chat language model to use for the chat flow.
 - `input_variables`: Dictionary of input variables.
+- `chat_llm`: Optional chat language model to use for the chat flow.
 - `input_chat_history`: Optional input chat history.
 
 **Returns**:
 
 Tuple of dictionary of output variables and list of chat histories.
+
+<a id="flow.ConcurrentChatFlows"></a>
+
+## ConcurrentChatFlows Objects
+
+```python
+class ConcurrentChatFlows(ChatFlow)
+```
+
+<a id="flow.ConcurrentChatFlows.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(chat_flows: List[ChatFlow],
+             default_chat_llm: Optional[ChatLLM] = None,
+             default_input_chat_history: Optional[ChatHistory] = None,
+             num_threads=None,
+             verbose: bool = False) -> None
+```
+
+Initializes a concurrent chat flows class.
+
+**Arguments**:
+
+- `chat_flows`: List of chat flows to run concurrently.
+- `default_chat_llm`: Optional default chat language model used in flow, if not provided in flow call.
+- `default_input_chat_history`: Optional default input chat history used in flow, if not provided in flow call.
+- `num_threads`: Number of threads to use for concurrent chat flows. If None, use all available threads.
+- `verbose`: If True, print chat flow messages.
+
+<a id="flow.ConcurrentChatFlows.verbose"></a>
+
+#### verbose
+
+```python
+@property
+def verbose()
+```
+
+**Returns**:
+
+Whether the flow is verbose.
+
+<a id="flow.ConcurrentChatFlows.verbose"></a>
+
+#### verbose
+
+```python
+@verbose.setter
+def verbose(verbose: bool)
+```
+
+Sets the verbose attribute.
+
+**Arguments**:
+
+- `verbose`: Whether the flow is verbose.
+
+<a id="flow.ConcurrentChatFlows.flow"></a>
+
+#### flow
+
+```python
+def flow(
+    input_variables: dict,
+    chat_llm: Optional[ChatLLM] = None,
+    input_chat_history: Optional[ChatHistory] = None
+) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]
+```
+
+Runs the chat flows concurrently through an LLM.
+
+**Arguments**:
+
+- `input_variables`: Dictionary of input variables.
+- `chat_llm`: Optional chat language model to use for the chat flow.
+- `input_chat_history`: Optional input chat history.
+
+**Returns**:
+
+Tuple of dictionary of output variables and tuple of list of chat histories (order matches ordering of chat_flows).
+
+<a id="flow.ConcurrentChatFlows.compress_histories"></a>
+
+#### compress\_histories
+
+```python
+def compress_histories(
+    histories: Tuple[List[ChatHistory], List[ChatHistory]]
+) -> Tuple[ChatHistory, ChatHistory]
+```
+
+Combines a tuple of list of chat histories into a tuple of two chat histories.
+
+**Arguments**:
+
+- `input_histories`: List of input chat histories.
+- `internal_histories`: List of internal chat histories.
+
+**Returns**:
+
+Tuple of combined input and internal chat histories.
+
+<a id="flow.ChatSpiral"></a>
+
+## ChatSpiral Objects
+
+```python
+class ChatSpiral(ChatFlow)
+```
+
+<a id="flow.ChatSpiral.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(chat_flow: ChatFlow,
+             output_varnames_remap: Optional[Dict[str, str]] = None,
+             default_chat_llm: Optional[ChatLLM] = None,
+             default_input_chat_history: Optional[ChatHistory] = None,
+             verbose: bool = False) -> None
+```
+
+Initializes a chat spiral class.
+
+**Arguments**:
+
+- `chat_flow`: Chat flow to spiral.
+- `output_varnames_remap`: Optional dictionary of output variable names to remap.
+- `default_chat_llm`: Optional default chat language model used in flow, if not provided in flow/spiral call.
+- `default_input_chat_history`: Optional default input chat history used in flow, if not provided in flow/spiral call.
+
+<a id="flow.ChatSpiral.verbose"></a>
+
+#### verbose
+
+```python
+@property
+def verbose()
+```
+
+**Returns**:
+
+Whether the flow is verbose.
+
+<a id="flow.ChatSpiral.verbose"></a>
+
+#### verbose
+
+```python
+@verbose.setter
+def verbose(verbose: bool)
+```
+
+Sets the verbose attribute.
+
+**Arguments**:
+
+- `verbose`: Whether the flow is verbose.
+
+<a id="flow.ChatSpiral.flow"></a>
+
+#### flow
+
+```python
+def flow(
+    input_variables: dict,
+    chat_llm: Optional[ChatLLM] = None,
+    input_chat_history: Optional[ChatHistory] = None
+) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]
+```
+
+Runs the chat flow through an LLM.
+
+**Arguments**:
+
+- `input_variables`: Dictionary of input variables.
+- `chat_llm`: Optional chat language model to use for the chat flow.
+- `input_chat_history`: Optional input chat history.
+
+**Returns**:
+
+Tuple of dictionary of output variables and two tuple of list of chat histories.
+
+<a id="flow.ChatSpiral.compress_histories"></a>
+
+#### compress\_histories
+
+```python
+def compress_histories(
+    histories: Tuple[List[ChatHistory], List[ChatHistory]]
+) -> Tuple[ChatHistory, ChatHistory]
+```
+
+Combines a tuple of list of chat histories into a tuple of two chat histories.
+
+**Arguments**:
+
+- `input_histories`: List of input chat histories.
+- `internal_histories`: List of internal chat histories.
+
+**Returns**:
+
+Tuple of combined input and internal chat histories.
 
 <a id="flow.ChatFlowManager"></a>
 
@@ -399,9 +919,9 @@ A class for adding mapping information to a chat flow.
 ```python
 def __init__(name,
              chat_flow: ChatFlow,
-             input_varnames_map: Optional[Dict[str, str]] = None,
-             output_varnames_map: Optional[Dict[str, str]] = None,
-             input_chat_history_map: Optional[List[Dict[str, Any]]] = None)
+             input_varnames_remap: Optional[Dict[str, str]] = None,
+             output_varnames_remap: Optional[Dict[str, str]] = None,
+             input_chat_history_remap: Optional[List[Dict[str, Any]]] = None)
 ```
 
 Initializes a ChatFlowNode.
@@ -410,9 +930,9 @@ Initializes a ChatFlowNode.
 
 - `name`: Name of the chat flow.
 - `chat_flow`: Chat flow.
-- `input_varnames_map`: Optional dictionary of input variable names to map to the chat flow.
-- `output_varnames_map`: Optional dictionary of output variable names to map to the chat flow.
-- `input_chat_history_map`: Optional list of dictionaries of input chat history metadata to map to the chat flow.
+- `input_varnames_remap`: Optional dictionary of input variable names to remap to the chat flow.
+- `output_varnames_remap`: Optional dictionary of output variable names to remap to the chat flow.
+- `input_chat_history_remap`: Optional list of dictionaries of input chat history metadata to remap to the chat flow.
 
 <a id="flow.ChatFlowManager.ChatFlowNode.flow"></a>
 
@@ -420,18 +940,19 @@ Initializes a ChatFlowNode.
 
 ```python
 def flow(
-    chat_llm: ChatLLM, input_variables: dict,
-    input_chat_histories: Dict[str, Dict[str, ChatHistory]]
-) -> Tuple[Dict[str, str], List[ChatHistory]]
+    input_variables: dict,
+    chat_llm: Optional[ChatLLM] = None,
+    input_chat_histories: Dict[str, Dict[str, ChatHistory]] = None
+) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]
 ```
 
 Runs the chat flow through an LLM while remapping input variables, chat histories, and output variables.
 
 **Arguments**:
 
-- `chat_llm`: The chat language model to use for the chat flow.
 - `input_variables`: Dictionary of input variables.
-- `input_chat_histories`: Dictionary of input chat histories.
+- `chat_llm`: Optional chat language model to use for the chat flow.
+- `input_chat_histories`: Optional dictionary of input chat histories.
 
 **Returns**:
 
@@ -457,17 +978,18 @@ Initializes a ChatFlowManager.
 
 ```python
 def flow(
-    chat_llms: Dict[str, ChatLLM], input_variables: dict,
-    input_chat_histories: Dict[str, ChatHistory]
-) -> Tuple[Dict[str, str], List[ChatHistory]]
+    input_variables: dict,
+    chat_llms: Optional[Dict[str, ChatLLM]] = None,
+    input_chat_histories: Optional[Dict[str, ChatHistory]] = None
+) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]
 ```
 
 Runs all the chat flows through the LLMs while remapping input variables, chat histories, and output variables.
 
 **Arguments**:
 
-- `chat_llms`: Dictionary of chat language models with names mapping to chat flow node names.
 - `input_variables`: Dictionary of input variables.
+- `chat_llms`: Dictionary of chat language models with names mapping to chat flow node names.
 - `input_chat_histories`: Dictionary of input chat histories with names (do not need to be same as chat flow node names)
 
 **Returns**:
@@ -497,7 +1019,7 @@ Extracts variables from a f-string like text.
 #### flatten\_dict
 
 ```python
-def flatten_dict(d: dict, parent_key: str = '', sep: str = '.') -> dict
+def flatten_dict(d: dict, parent_key: str = "", sep: str = ".") -> dict
 ```
 
 Flatten a dictionary.

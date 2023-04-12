@@ -426,6 +426,107 @@ class FuncChatFlow(ChatFlow):
         return outputs, (new_input_chat_histories, internal_histories)
 
 
+class MemoryChatFlow(ChatFlow):
+    """
+    A class for creating chat flows that interact with external memories
+    """
+
+    def __init__(
+        self,
+        chat_flow: ChatFlow,
+        default_chat_llm: Optional[ChatLLM] = None,
+        default_input_chat_history: Optional[ChatHistory] = None,
+        verbose: bool = False,
+    ) -> None:
+        """
+        Initializes a MemoryChatFlow from a ChatFlow.
+
+        :param chat_flow: ChatFlow to used for the chat flow and to get the query
+        :param default_chat_llm: Optional default chat language model used in flow, if not provided in.
+        :param default_input_chat_history: Optional default input chat history used in flow, if not provided in.
+        :param verbose: If True, print chat flow steps.
+        """
+        self._chat_flow = chat_flow
+        self.default_chat_llm = default_chat_llm
+        self.default_input_chat_history = default_input_chat_history
+        self._input_varnames = self._chat_flow.input_varnames
+        self._output_varnames = self._chat_flow.output_varnames
+        if "query" not in self._output_varnames:
+            raise ValueError(
+                'MemoryChatFlow must have an output variable named "query" since it is used to query the memory.'
+            )
+        if "memory" in self._output_varnames:
+            raise ValueError(
+                'MemoryChatFlow cannot have an output variable named "memory" since it is reserved for the memory obtained from external memories.'
+            )
+        self._output_varnames.add("memory")
+        self.verbose = verbose
+
+    @property
+    def verbose(self):
+        """
+        :return: Whether the flow is verbose.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """
+        Sets the verbose attribute.
+
+        :param verbose: Whether the flow is verbose.
+        """
+        self._chat_flow.verbose = verbose
+        self._verbose = verbose
+
+    @property
+    def input_varnames(self) -> Set[str]:
+        return set(self._input_varnames)
+
+    @property
+    def output_varnames(self) -> Set[str]:
+        return set(self._output_varnames)
+
+    def flow(
+        self,
+        input_variables: dict,
+        chat_llm: Optional[ChatLLM] = None,
+        input_chat_history: Optional[ChatHistory] = None,
+    ) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]:
+        """
+        Runs the chat flow through an LLM and gets a query which is used to get memory from external memories.
+
+        :param input_variables: Dictionary of input variables.
+        :param chat_llm: Optional chat language model to use for the chat flow.
+        :param input_chat_history: Optional input chat history.
+        :return: Tuple of dictionary of output variables and a tuple of input and internal chat histories.
+        """
+        if chat_llm is None:
+            chat_llm = self.default_chat_llm
+        if input_chat_history is None:
+            input_chat_history = self.default_input_chat_history
+
+        variables, histories = self._chat_flow.flow(
+            input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
+        )
+
+        query = variables["query"]
+        memory = self.query_memory(query)
+
+        variables["memory"] = memory
+
+        return variables, histories
+
+    def query_memory(self, query: str) -> str:
+        """
+        Queries the memory with the given query.
+
+        :param query: Query to use to get memory.
+        :return: Memory obtained from external memories.
+        """
+        raise NotImplementedError("MemoryChatFlow must implement query_memory.")
+
+
 class ConditonalChatFlow(ChatFlow):
     """
     A class for creating conditional chat flows, which shift flows based on the output of previous messages.
@@ -1001,6 +1102,7 @@ class ChatFlowManager:
             :param output_varnames_remap: Optional dictionary of output variable names to remap to the chat flow.
             :param input_chat_history_remap: Optional list of dictionaries of input chat history metadata to remap to the chat flow.
             """
+            raise NotImplementedError()
             self.name = name
             self.chat_flow = chat_flow
             self.input_varnames_remap = (
@@ -1080,6 +1182,7 @@ class ChatFlowManager:
 
         :param chat_flow_nodes: List of ChatFlowNodes in sequential order.
         """
+        raise NotImplementedError()
         self.chat_flows_nodes = chat_flow_nodes
 
         self._output_varnames = []
