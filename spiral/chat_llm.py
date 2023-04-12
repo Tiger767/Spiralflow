@@ -9,7 +9,9 @@ class ChatLLM:
     A class for chat completion using the GPT model.
     """
 
-    def __init__(self, gpt_model: str = 'gpt-3.5-turbo', stream=False, **kwargs) -> None:
+    def __init__(
+        self, gpt_model: str = "gpt-3.5-turbo", stream=False, **kwargs
+    ) -> None:
         """
         Initializes the ChatLLM class with the given parameters.
 
@@ -28,13 +30,11 @@ class ChatLLM:
         :return: Response from the chat completion with content, role, and metadata.
         """
         if self.stream:
-            raise NotImplementedError('Stream mode is not implemented yet.')
+            raise NotImplementedError("Stream mode is not implemented yet.")
         else:
             response = openai.ChatCompletion.create(
-                model=self.gpt_model,
-                messages=messages,
-                **self.model_params
+                model=self.gpt_model, messages=messages, **self.model_params
             )
-            message = response['choices'][0]['message']
-            
-            return message['content'], message['role'], response
+            message = response["choices"][0]["message"]
+
+            return message["content"], message["role"], response

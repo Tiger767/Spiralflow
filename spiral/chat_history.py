@@ -37,9 +37,9 @@ class ChatHistory:
         :param message: The message to add to the chat history.
         """
         if not message.defined():
-            raise ValueError('Message must have all defined variables.')
+            raise ValueError("Message must have all defined variables.")
         if self._const:
-            raise ValueError('Cannot add messages to a constant chat history.')
+            raise ValueError("Cannot add messages to a constant chat history.")
         self._messages.append(message.get_const())
 
     def make_const(self) -> None:
