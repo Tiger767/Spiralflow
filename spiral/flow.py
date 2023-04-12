@@ -12,8 +12,9 @@ from message import (
     Role,
     ExtractionError,
 )
-from chat_history import ChatHistory
+from chat_history import ChatHistory, ChatHistoryManager
 from chat_llm import ChatLLM
+from memory import Memory
 
 
 def combine_chat_histories(chat_histories):
@@ -279,7 +280,7 @@ class ChatFlow(BaseFlow):
         :return: Tuple of combined input and internal chat histories.
         """
         input_histories, internal_histories = histories
-        
+
         if len(input_histories) == 0 and len(internal_histories) == 0:
             return ChatHistory(), ChatHistory()
 
@@ -450,7 +451,7 @@ class ChatFlowWrapper(ChatFlow):
 
     def __init__(self, chat_flow: ChatFlow, verbose: bool = False) -> None:
         """
-        Initializes a NoHistory object.
+        Initializes a ChatFlowWrapper.
 
         :param chat_flow: ChatFlow to wrap.
         :param verbose: Whether to print verbose output.
@@ -514,9 +515,15 @@ class NoHistory(ChatFlowWrapper):
     A ChatFlow that blocks the input chat history from being passed to the LLM and returns empty input and internal chat histories.
     """
 
-    def __init__(self, chat_flow: ChatFlow, allow_input_history: bool = False,
-                 allow_rtn_internal_history: bool = False, allow_rtn_input_history: bool = False,
-                 disallow_default_history: bool = False, verbose: bool = False) -> None:
+    def __init__(
+        self,
+        chat_flow: ChatFlow,
+        allow_input_history: bool = False,
+        allow_rtn_internal_history: bool = False,
+        allow_rtn_input_history: bool = False,
+        disallow_default_history: bool = False,
+        verbose: bool = False,
+    ) -> None:
         """
         Initializes a NoHistory object.
 
@@ -564,12 +571,89 @@ class NoHistory(ChatFlowWrapper):
         return variables, histories
 
 
-class SelectHistory(ChatFlowWrapper):
-    pass
+class History(ChatFlowWrapper):
+    """
+    A class that wraps a ChatFlow and uses a history manager to import and export histories to other
+    History Chat Flows.
 
+    Limitations:
+     - If importing histories, the input chat histories will be ignored.
+    """
 
-class SpaghettiHistory(ChatFlowWrapper):
-    pass
+    def __init__(
+        self,
+        chat_flow: ChatFlow,
+        history_manager: ChatHistoryManager,
+        histories_id: Optional[str],
+        histories_ids: Optional[List[str]] = None,
+        verbose: bool = False,
+    ) -> None:
+        """
+        Initializes a History object.
+
+        :param chat_flow: ChatFlow to wrap.
+        :param history_manager: Chat history manager to use.
+        :param histories_id: Optional ID of the history to use. If provided, this chat flows
+                             input and internal histories will be saved to the history manager.
+        :param histories_ids: Optional list of IDs of histories to use combine and use.
+                              If provided, input chat histories will be ignored.
+        """
+        super().__init__(chat_flow, verbose)
+        self._history_manager = history_manager
+        self._histories_id = histories_id
+        self._histories_ids = histories_ids
+
+        # Add placeholder
+        if self._histories_id is not None:
+            self._history_manager.add_chat_history(histories_id + "_input")
+            self._history_manager.add_chat_history(histories_id + "_internal")
+
+        # Check placeholders exists for requested histories
+        if self._histories_ids is not None:
+            specified_histories_ids = []
+            for histories_id in self._histories_ids:
+                if histories_id in self._history_manager:
+                    specified_histories_ids.append(histories_id)
+                elif histories_id + "_input" in self._history_manager:
+                    specified_histories_ids.append(histories_id + "_input")
+                    specified_histories_ids.append(histories_id + "_internal")
+                else:
+                    raise ValueError("History with id '{histories_id}' does not exist")
+            self._histories_ids = specified_histories_ids
+
+    def flow(
+        self,
+        input_variables: dict,
+        chat_llm: Optional[ChatLLM] = None,
+        input_chat_history: Optional[ChatHistory] = None,
+    ) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]:
+        """
+        Runs the chat flow through an LLM.
+
+        :param input_variables: Dictionary of input variables.
+        :param chat_llm: Optional chat language model to use for the chat flow.
+        :param input_chat_history: Optional input chat history.
+        :return: Tuple of dictionary of output variables and a tuple of empty input and internal chat histories.
+        """
+        if self._histories_ids is not None:
+            input_chat_history = self._history_manager.get_combined_chat_histories(
+                self._histories_ids
+            )
+
+        variables, histories = self._chat_flow.flow(
+            input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
+        )
+
+        if self._histories_id is not None:
+            combined_histories = self.compress_histories(histories)
+            self._history_manager.replace_chat_history(
+                self._histories_id + "_input", combined_histories[0]
+            )
+            self._history_manager.replace_chat_history(
+                self._histories_id + "_internal", combined_histories[1]
+            )
+
+        return variables, histories
 
 
 class MemoryChatFlow(ChatFlowWrapper):
@@ -580,6 +664,8 @@ class MemoryChatFlow(ChatFlowWrapper):
     def __init__(
         self,
         chat_flow: ChatFlow,
+        memory: Memory,
+        memory_query_kwargs: Optional[dict] = None,
         default_chat_llm: Optional[ChatLLM] = None,
         default_input_chat_history: Optional[ChatHistory] = None,
         verbose: bool = False,
@@ -588,11 +674,15 @@ class MemoryChatFlow(ChatFlowWrapper):
         Initializes a MemoryChatFlow from a ChatFlow.
 
         :param chat_flow: ChatFlow to used for the chat flow and to get the query
+        :param memory: Memory to use for the chat flow.
+        :param memory_query_kwargs: Optional keyword arguments to pass to memory query.
         :param default_chat_llm: Optional default chat language model used in flow, if not provided in.
         :param default_input_chat_history: Optional default input chat history used in flow, if not provided in.
         :param verbose: If True, print chat flow steps.
         """
         super().__init__(chat_flow, verbose)
+        self._memory = memory
+        self._memory_query_kwargs = memory_query_kwargs
         self.default_chat_llm = default_chat_llm
         self.default_input_chat_history = default_input_chat_history
         # should not mutate varnames, but if chat flow does, this will break, since will not update
@@ -646,20 +736,11 @@ class MemoryChatFlow(ChatFlowWrapper):
         )
 
         query = variables["query"]
-        memory = self.query_memory(query)
+        memory = self._memory.query(query, **self._memory_query_kwargs)
 
         variables["memory"] = memory
 
         return variables, histories
-
-    def query_memory(self, query: str) -> str:
-        """
-        Queries the memory with the given query.
-
-        :param query: Query to use to get memory.
-        :return: Memory obtained from external memories.
-        """
-        raise NotImplementedError("MemoryChatFlow must implement query_memory.")
 
 
 class ConditonalChatFlow(ChatFlowWrapper):
@@ -1215,182 +1296,3 @@ class ChatSpiral(ChatFlowWrapper):
             input_histories[0][0],
             internal_histories[0][0],
         )
-
-
-class ChatFlowManager:
-    """
-    A class for managing chat flows.
-    """
-
-    class ChatFlowNode:
-        """
-        A class for adding mapping information to a chat flow.
-        """
-
-        def __init__(
-            self,
-            name,
-            chat_flow: ChatFlow,
-            input_varnames_remap: Optional[Dict[str, str]] = None,
-            output_varnames_remap: Optional[Dict[str, str]] = None,
-            input_chat_history_remap: Optional[List[Dict[str, Any]]] = None,
-        ):
-            """
-            Initializes a ChatFlowNode.
-
-            :param name: Name of the chat flow.
-            :param chat_flow: Chat flow.
-            :param input_varnames_remap: Optional dictionary of input variable names to remap to the chat flow.
-            :param output_varnames_remap: Optional dictionary of output variable names to remap to the chat flow.
-            :param input_chat_history_remap: Optional list of dictionaries of input chat history metadata to remap to the chat flow.
-            """
-            raise NotImplementedError()
-            self.name = name
-            self.chat_flow = chat_flow
-            self.input_varnames_remap = (
-                {} if input_varnames_remap is None else input_varnames_remap
-            )
-            self.output_varnames_remap = (
-                {} if output_varnames_remap is None else output_varnames_remap
-            )
-            self.input_chat_history_remap = (
-                {} if input_chat_history_remap is None else input_chat_history_remap
-            )
-
-            for value in self.input_varnames_remap.values():
-                if value not in self.chat_flow.input_varnames:
-                    raise ValueError(
-                        f"Invalid input map value. {value} not in chat flow input. Expected one of {self.chat_flow.input_varnames}"
-                    )
-
-            for key in self.output_varnames_remap:
-                if key not in self.chat_flow.output_varnames:
-                    raise ValueError(
-                        f"Invalid output map key. {key} not in chat flow output. Expected one of {self.chat_flow.output_varnames}"
-                    )
-
-        def flow(
-            self,
-            input_variables: dict,
-            chat_llm: Optional[ChatLLM] = None,
-            input_chat_histories: Dict[str, Dict[str, ChatHistory]] = None,
-        ) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]:
-            """
-            Runs the chat flow through an LLM while remapping input variables, chat histories, and output variables.
-
-            :param input_variables: Dictionary of input variables.
-            :param chat_llm: Optional chat language model to use for the chat flow.
-            :param input_chat_histories: Optional dictionary of input chat histories.
-            :return: Tuple of dictionary of output variables and chat histories.
-            """
-            input_variables = {
-                self.input_varnames_remap.get(varname, varname): varvalue
-                for varname, varvalue in input_variables.items()
-            }
-
-            if input_chat_histories is None:
-                input_chat_history = None
-            else:
-                messages = []
-                for history_metadata in self.input_chat_history_remap:
-                    chat_histories = input_chat_histories[history_metadata["name"]]
-                    chat_history = chat_histories[history_metadata["type"]]
-                    ndxs = (
-                        history_metadata["ndxs"]
-                        if "ndxs" in history_metadata
-                        else range(len(chat_history.messages))
-                    )
-                    for ndx in ndxs:
-                        messages.append(chat_history.messages[ndx])
-
-                input_chat_history = ChatHistory(messages)
-
-            output_variables, chat_histories = self.chat_flow.flow(
-                input_variables,
-                chat_llm=chat_llm,
-                input_chat_history=input_chat_history,
-            )
-
-            output_variables = {
-                self.output_varnames_remap.get(varname, varname): varvalue
-                for varname, varvalue in output_variables.items()
-            }
-
-            return output_variables, chat_histories
-
-    def __init__(self, chat_flow_nodes: List[ChatFlowNode]):
-        """
-        Initializes a ChatFlowManager.
-
-        :param chat_flow_nodes: List of ChatFlowNodes in sequential order.
-        """
-        raise NotImplementedError()
-        self.chat_flows_nodes = chat_flow_nodes
-
-        self._output_varnames = []
-        all_input_varnames = set()
-
-        for node in self.chat_flows_nodes:
-            node_input_varnames = set(
-                node.input_varnames_remap.keys()
-            )  # maps do not have to contain all values so not full check
-            node_output_varnames = set(node.output_varnames_remap.values())  # ditto
-
-            self._output_varnames.extend(node_output_varnames)
-            all_input_varnames.update(node_input_varnames)
-
-        if len(self._output_varnames) != len(set(self._output_varnames)):
-            raise ValueError("Output variable names conflict between chat flow nodes.")
-
-        self._output_varnames = set(self._output_varnames)
-
-        if len(all_input_varnames.intersection(node_output_varnames)) > 0:
-            raise ValueError(
-                "Input variable names conflict with output variable names."
-            )
-
-    def flow(
-        self,
-        input_variables: dict,
-        chat_llms: Optional[Dict[str, ChatLLM]] = None,
-        input_chat_histories: Optional[Dict[str, ChatHistory]] = None,
-    ) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]:
-        """
-        Runs all the chat flows through the LLMs while remapping input variables, chat histories, and output variables.
-
-        :param input_variables: Dictionary of input variables.
-        :param chat_llms: Dictionary of chat language models with names mapping to chat flow node names.
-        :param input_chat_histories: Dictionary of input chat histories with names (do not need to be same as chat flow node names)
-        :return: Tuple of dictionary of output variables and chat histories.
-        """
-
-        # need to add validation checks
-
-        input_chat_histories = {
-            name: {"initial": chat_history}
-            for name, chat_history in input_chat_histories.items()
-        }
-
-        all_variables = {}
-        internal_chat_histories = []
-        for chat_flow_node in self.chat_flows_nodes:
-            variables, internal_chat_history = chat_flow_node.flow(
-                input_variables,
-                chat_llm=chat_llms.get(chat_flow_node.name, None),
-                input_chat_histories=input_chat_histories,
-            )
-
-            all_variables.update(variables)
-
-            internal_chat_histories.append(internal_chat_history)
-
-            if chat_flow_node.name in input_chat_histories:
-                input_chat_histories[chat_flow_node.name][
-                    "internal"
-                ] = internal_chat_history
-            else:
-                input_chat_histories[chat_flow_node.name] = {
-                    "internal": internal_chat_history
-                }
-
-        return all_variables, internal_chat_histories

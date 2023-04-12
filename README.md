@@ -10,12 +10,18 @@ This project is designed to help with creating, formatting, and extracting data 
 *   `OutputJSONMessage`: A class to create output messages and extract JSON formated dict variables from them.
 *   `ChatLLM`: A class to interface with OpenAI's chat models.
 *   `ChatHistory`: A class to store a sequence of messages in a conversation.
+*   `ChatHistoryManager`: A class to manage many different chat histories.
 *   `ChatFlow`: A class to represent a conversation flow, combining input and output messages.
+*   `FuncChatFlow`: A class to represent a function in a conversation flow.
+*   `ChatFlowWrapper`: A class to wrap ChatFlows to allow for more complicated ideas such as NoHistory.
+*   `NoHistory`: A class to block the flow of specific histories whether in or out of the flow.
+*   `History`: A class that allows for more complicated flows of histories, utilizing the ChatHistoryManager.
+*   `MemoryChatFlow`: A class that allows a chat flow to query external memory.
+*   `ConditonalChatFlow`: A class to represent a conversation flow with multiple branches that depend on an output of a flow.
 *   `SequentialChatFlows`: A class to represent multiple conversation flows, flowing sequentially.
 *   `ConcurrentChatFlows`: A class to represent multiple conversation flows, flowing separately and concurrently.
-*   `ConditonalChatFlow`: A class to represent a conversation flow with multiple branches that depend on an output of a flow.
-*   `FuncChatFlow`: A class to represent a function in a conversation flow.
 *   `ChatSpiral`: A class to represent a spiral of conversation flows.
+
 
 Installation
 ------------
