@@ -9,6 +9,7 @@ class BaseTool(ABC):
     def use(self, inputs: Dict[str, str]) -> Union[str, list[str]]:
         pass
 
+
 class GoogleSearchTool(BaseTool):
     def __init__(self, api_key: str, cse_id: str, num_results: int = 10,
                  failed_search_result: str = 'No google search results found.',

@@ -237,7 +237,7 @@ class ChatFlow(BaseFlow):
                 for message in messages:
                     print(" ", message)
 
-        return variables, ([new_input_chat_history], internal_chat_histories)
+        return all_variables, ([new_input_chat_history], internal_chat_histories)
 
     def __call__(
         self,
