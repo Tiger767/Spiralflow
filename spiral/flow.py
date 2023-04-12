@@ -346,92 +346,6 @@ class ChatFlow(BaseFlow):
         return ChatFlow(msgs, **kwargs)
 
 
-class NoHistory(ChatFlow):
-    """
-    A ChatFlow that blocks the input chat history from being passed to the LLM and returns empty input and internal chat histories.
-    """
-
-    def __init__(self, chat_flow: ChatFlow, allow_input_history: bool = False,
-                 allow_rtn_internal_history: bool = False, allow_rtn_input_history: bool = False,
-                 disallow_default_history: bool = False, verbose: bool = False) -> None:
-        """
-        Initializes a NoHistory object.
-
-        :param chat_flow: ChatFlow to wrap.
-        :param allow_input_history: Whether to allow the input chat history to be passed to the LLM.
-        :param allow_rtn_internal_history: Whether to allow the internal chat history to be returned.
-        :param allow_rtn_input_history: Whether to allow the input chat history to be returned.
-        :param disallow_default_history: Whether to disallow the default chat history to be returned.
-        """
-        self._chat_flow = chat_flow
-        self._allow_input_history = allow_input_history
-        self._allow_rtn_internal_history = allow_rtn_internal_history
-        self._allow_rtn_input_history = allow_rtn_input_history
-        self._disallow_default_history = disallow_default_history
-        self._verbose = verbose
-
-    @property
-    def verbose(self):
-        """
-        :return: Whether the flow is verbose.
-        """
-        return self._verbose
-
-    @verbose.setter
-    def verbose(self, verbose: bool):
-        """
-        Sets the verbose attribute.
-
-        :param verbose: Whether the flow is verbose.
-        """
-        self._chat_flow.verbose = verbose
-        self._verbose = verbose
-
-    @property
-    def input_varnames(self):
-        """
-        :return: A deepcopy of input variable names.
-        """
-        return self._chat_flow.input_varnames
-
-    @property
-    def output_varnames(self):
-        """
-        :return: A deepcopy of output variable names.
-        """
-        return self._chat_flow.output_varnames
-
-    def flow(
-        self,
-        input_variables: dict,
-        chat_llm: Optional[ChatLLM] = None,
-        input_chat_history: Optional[ChatHistory] = None,
-    ) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]:
-        """
-        Runs the chat flow through an LLM.
-
-        :param input_variables: Dictionary of input variables.
-        :param chat_llm: Optional chat language model to use for the chat flow.
-        :param input_chat_history: Optional input chat history. Will not be used, but internal chat flow may use default.
-        :return: Tuple of dictionary of output variables and a tuple of empty input and internal chat histories.
-        """
-        if not self._allow_input_history:
-            input_chat_history = None
-        if self._disallow_default_history:
-            input_chat_history = ChatHistory()
-
-        variables, histories = self._chat_flow.flow(
-            input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
-        )
-
-        if not self._allow_rtn_internal_history:
-            histories = (histories[0], [])
-        if not self._allow_rtn_input_history:
-            histories = ([], histories[1])
-
-        return variables, histories
-
-
 class FuncChatFlow(ChatFlow):
     """
     A class for creating chat flows from functions.
@@ -529,7 +443,136 @@ class FuncChatFlow(ChatFlow):
         return outputs, (new_input_chat_histories, internal_histories)
 
 
-class MemoryChatFlow(ChatFlow):
+class ChatFlowWrapper(ChatFlow):
+    """
+    A ChatFlow wrapper class for others to inherit from.
+    """
+
+    def __init__(self, chat_flow: ChatFlow, verbose: bool = False) -> None:
+        """
+        Initializes a NoHistory object.
+
+        :param chat_flow: ChatFlow to wrap.
+        :param verbose: Whether to print verbose output.
+        """
+        self._chat_flow = chat_flow
+        self._verbose = verbose
+
+    @property
+    def verbose(self):
+        """
+        :return: Whether the flow is verbose.
+        """
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        """
+        Sets the verbose attribute.
+
+        :param verbose: Whether the flow is verbose.
+        """
+        self._chat_flow.verbose = verbose
+        self._verbose = verbose
+
+    @property
+    def input_varnames(self):
+        """
+        :return: A deepcopy of input variable names.
+        """
+        return self._chat_flow.input_varnames
+
+    @property
+    def output_varnames(self):
+        """
+        :return: A deepcopy of output variable names.
+        """
+        return self._chat_flow.output_varnames
+
+    def flow(
+        self,
+        input_variables: dict,
+        chat_llm: Optional[ChatLLM] = None,
+        input_chat_history: Optional[ChatHistory] = None,
+    ) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]:
+        """
+        Runs the chat flow through an LLM.
+
+        :param input_variables: Dictionary of input variables.
+        :param chat_llm: Optional chat language model to use for the chat flow.
+        :param input_chat_history: Optional input chat history.
+        :return: Tuple of dictionary of output variables and a tuple of empty input and internal chat histories.
+        """
+        variables, histories = self._chat_flow.flow(
+            input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
+        )
+        return variables, histories
+
+
+class NoHistory(ChatFlowWrapper):
+    """
+    A ChatFlow that blocks the input chat history from being passed to the LLM and returns empty input and internal chat histories.
+    """
+
+    def __init__(self, chat_flow: ChatFlow, allow_input_history: bool = False,
+                 allow_rtn_internal_history: bool = False, allow_rtn_input_history: bool = False,
+                 disallow_default_history: bool = False, verbose: bool = False) -> None:
+        """
+        Initializes a NoHistory object.
+
+        :param chat_flow: ChatFlow to wrap.
+        :param allow_input_history: Whether to allow the input chat history to be passed to the LLM.
+        :param allow_rtn_internal_history: Whether to allow the internal chat history to be returned.
+        :param allow_rtn_input_history: Whether to allow the input chat history to be returned.
+        :param disallow_default_history: Whether to disallow the default chat history to be returned.
+        :param verbose: Whether to print verbose output.
+        """
+        super().__init__(chat_flow, verbose)
+        self._allow_input_history = allow_input_history
+        self._allow_rtn_internal_history = allow_rtn_internal_history
+        self._allow_rtn_input_history = allow_rtn_input_history
+        self._disallow_default_history = disallow_default_history
+
+    def flow(
+        self,
+        input_variables: dict,
+        chat_llm: Optional[ChatLLM] = None,
+        input_chat_history: Optional[ChatHistory] = None,
+    ) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]:
+        """
+        Runs the chat flow through an LLM.
+
+        :param input_variables: Dictionary of input variables.
+        :param chat_llm: Optional chat language model to use for the chat flow.
+        :param input_chat_history: Optional input chat history. Will not be used, but internal chat flow may use default.
+        :return: Tuple of dictionary of output variables and a tuple of empty input and internal chat histories.
+        """
+        if not self._allow_input_history:
+            input_chat_history = None
+        if self._disallow_default_history:
+            input_chat_history = ChatHistory()
+
+        variables, histories = self._chat_flow.flow(
+            input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
+        )
+
+        if not self._allow_rtn_internal_history:
+            histories = (histories[0], [])
+        if not self._allow_rtn_input_history:
+            histories = ([], histories[1])
+
+        return variables, histories
+
+
+class SelectHistory(ChatFlowWrapper):
+    pass
+
+
+class SpaghettiHistory(ChatFlowWrapper):
+    pass
+
+
+class MemoryChatFlow(ChatFlowWrapper):
     """
     A class for creating chat flows that interact with external memories
     """
@@ -549,7 +592,7 @@ class MemoryChatFlow(ChatFlow):
         :param default_input_chat_history: Optional default input chat history used in flow, if not provided in.
         :param verbose: If True, print chat flow steps.
         """
-        self._chat_flow = chat_flow
+        super().__init__(chat_flow, verbose)
         self.default_chat_llm = default_chat_llm
         self.default_input_chat_history = default_input_chat_history
         # should not mutate varnames, but if chat flow does, this will break, since will not update
@@ -564,24 +607,6 @@ class MemoryChatFlow(ChatFlow):
                 'MemoryChatFlow cannot have an output variable named "memory" since it is reserved for the memory obtained from external memories.'
             )
         self._output_varnames.add("memory")
-        self.verbose = verbose
-
-    @property
-    def verbose(self):
-        """
-        :return: Whether the flow is verbose.
-        """
-        return self._verbose
-
-    @verbose.setter
-    def verbose(self, verbose: bool):
-        """
-        Sets the verbose attribute.
-
-        :param verbose: Whether the flow is verbose.
-        """
-        self._chat_flow.verbose = verbose
-        self._verbose = verbose
 
     @property
     def input_varnames(self):
@@ -637,7 +662,7 @@ class MemoryChatFlow(ChatFlow):
         raise NotImplementedError("MemoryChatFlow must implement query_memory.")
 
 
-class ConditonalChatFlow(ChatFlow):
+class ConditonalChatFlow(ChatFlowWrapper):
     """
     A class for creating conditional chat flows, which shift flows based on the output of previous messages.
     """
@@ -813,7 +838,7 @@ class ConditonalChatFlow(ChatFlow):
         )
 
 
-class SequentialChatFlows(ChatFlow):
+class SequentialChatFlows(ChatFlowWrapper):
     """
     A sequential chat flow class that runs a list of chat flows sequentially.
 
@@ -937,7 +962,7 @@ class SequentialChatFlows(ChatFlow):
         return output_variables, ([first_input_history], internal_histories)
 
 
-class ConcurrentChatFlows(ChatFlow):
+class ConcurrentChatFlows(ChatFlowWrapper):
     def __init__(
         self,
         chat_flows: List[ChatFlow],
@@ -1075,7 +1100,7 @@ class ConcurrentChatFlows(ChatFlow):
         return (ChatHistory(), ChatHistory(messages))
 
 
-class ChatSpiral(ChatFlow):
+class ChatSpiral(ChatFlowWrapper):
     class Exit(Exception):
         pass
 
@@ -1095,41 +1120,20 @@ class ChatSpiral(ChatFlow):
         :param default_chat_llm: Optional default chat language model used in flow, if not provided in flow/spiral call.
         :param default_input_chat_history: Optional default input chat history used in flow, if not provided in flow/spiral call.
         """
-        self._chat_flow = chat_flow
+        super().__init__(chat_flow, verbose=verbose)
         self._output_varnames_remap = output_varnames_remap
-        # should not mutate varnames, but if chat flow does, this will break, since will not update
-        self._input_variables = self._chat_flow.input_varnames
-        self._output_varnames = self._chat_flow.output_varnames
         self.default_chat_llm = default_chat_llm
         self.default_input_chat_history = default_input_chat_history
-        self.verbose = verbose
 
         # check output contains all input variables? No?
 
     @property
-    def verbose(self):
-        """
-        :return: Whether the flow is verbose.
-        """
-        return self._verbose
-
-    @verbose.setter
-    def verbose(self, verbose: bool):
-        """
-        Sets the verbose attribute.
-
-        :param verbose: Whether the flow is verbose.
-        """
-        self._chat_flow.verbose = verbose
-        self._verbose = verbose
-
-    @property
-    def input_varnames(self) -> Set[str]:
-        return set(self._input_variables)
-
-    @property
     def output_varnames(self) -> Set[str]:
-        return set(self._output_varnames)
+        output_varnames = {
+            self._output_varnames_remap.get(varname, varname)
+            for varname in self._chat_flow.output_varnames
+        }
+        return output_varnames
 
     def flow(
         self,
