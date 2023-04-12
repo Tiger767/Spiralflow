@@ -307,8 +307,7 @@ Combines a tuple of list of chat histories into a tuple of two chat histories.
 
 **Arguments**:
 
-- `input_histories`: List of input chat histories.
-- `internal_histories`: List of internal chat histories.
+- `histories`: Tuple of list of chat histories.
 
 **Returns**:
 
@@ -353,7 +352,7 @@ def __init__(func: Callable[[dict, Optional[ChatLLM], Optional[ChatHistory]],
                                                         List[ChatHistory]]], ],
              input_varnames: Set[str],
              output_varnames: Set[str],
-             default_chat_llm: Optional[ChatHistory] = None,
+             default_chat_llm: Optional[ChatLLM] = None,
              default_input_chat_history: Optional[ChatHistory] = None,
              verbose: bool = False) -> None
 ```
@@ -368,6 +367,32 @@ Initializes a FuncChatFlow.
 - `default_chat_llm`: Optional default chat language model used in flow, if not provided in.
 - `default_input_chat_history`: Optional default input chat history used in flow, if not provided in.
 - `verbose`: If True, print chat flow steps.
+
+<a id="flow.FuncChatFlow.input_varnames"></a>
+
+#### input\_varnames
+
+```python
+@property
+def input_varnames()
+```
+
+**Returns**:
+
+A deepcopy of input variable names.
+
+<a id="flow.FuncChatFlow.output_varnames"></a>
+
+#### output\_varnames
+
+```python
+@property
+def output_varnames()
+```
+
+**Returns**:
+
+A deepcopy of output variable names.
 
 <a id="flow.FuncChatFlow.flow"></a>
 
@@ -450,6 +475,32 @@ Sets the verbose attribute.
 **Arguments**:
 
 - `verbose`: Whether the flow is verbose.
+
+<a id="flow.MemoryChatFlow.input_varnames"></a>
+
+#### input\_varnames
+
+```python
+@property
+def input_varnames()
+```
+
+**Returns**:
+
+A deepcopy of input variable names.
+
+<a id="flow.MemoryChatFlow.output_varnames"></a>
+
+#### output\_varnames
+
+```python
+@property
+def output_varnames()
+```
+
+**Returns**:
+
+A deepcopy of output variable names.
 
 <a id="flow.MemoryChatFlow.flow"></a>
 
@@ -595,8 +646,7 @@ Combines a tuple of list of chat histories into a tuple of two chat histories.
 
 **Arguments**:
 
-- `input_histories`: List of input chat histories.
-- `internal_histories`: List of internal chat histories.
+- `histories`: Tuple of list of chat histories.
 
 **Returns**:
 
@@ -614,6 +664,7 @@ A sequential chat flow class that runs a list of chat flows sequentially.
 
 Limitations:
  - All chat flows use the input history returned by the first chat flow plus internal of previous chat flows.
+ - A chat flow can take an input and overwrite the original input with a new output with the same name. Be careful.
 
 <a id="flow.SequentialChatFlows.__init__"></a>
 
@@ -663,6 +714,32 @@ Sets the verbose attribute.
 
 - `verbose`: Whether the flow is verbose.
 
+<a id="flow.SequentialChatFlows.input_varnames"></a>
+
+#### input\_varnames
+
+```python
+@property
+def input_varnames()
+```
+
+**Returns**:
+
+A deepcopy of input variable names.
+
+<a id="flow.SequentialChatFlows.output_varnames"></a>
+
+#### output\_varnames
+
+```python
+@property
+def output_varnames()
+```
+
+**Returns**:
+
+A deepcopy of output variable names.
+
 <a id="flow.SequentialChatFlows.flow"></a>
 
 #### flow
@@ -703,7 +780,7 @@ class ConcurrentChatFlows(ChatFlow)
 def __init__(chat_flows: List[ChatFlow],
              default_chat_llm: Optional[ChatLLM] = None,
              default_input_chat_history: Optional[ChatHistory] = None,
-             num_threads=None,
+             max_workers=None,
              verbose: bool = False) -> None
 ```
 
@@ -714,7 +791,7 @@ Initializes a concurrent chat flows class.
 - `chat_flows`: List of chat flows to run concurrently.
 - `default_chat_llm`: Optional default chat language model used in flow, if not provided in flow call.
 - `default_input_chat_history`: Optional default input chat history used in flow, if not provided in flow call.
-- `num_threads`: Number of threads to use for concurrent chat flows. If None, use all available threads.
+- `max_workers`: Number of threads to use for concurrent chat flows. If None, use all available threads.
 - `verbose`: If True, print chat flow messages.
 
 <a id="flow.ConcurrentChatFlows.verbose"></a>
@@ -744,6 +821,32 @@ Sets the verbose attribute.
 **Arguments**:
 
 - `verbose`: Whether the flow is verbose.
+
+<a id="flow.ConcurrentChatFlows.input_varnames"></a>
+
+#### input\_varnames
+
+```python
+@property
+def input_varnames()
+```
+
+**Returns**:
+
+A deepcopy of input variable names.
+
+<a id="flow.ConcurrentChatFlows.output_varnames"></a>
+
+#### output\_varnames
+
+```python
+@property
+def output_varnames()
+```
+
+**Returns**:
+
+A deepcopy of output variable names.
 
 <a id="flow.ConcurrentChatFlows.flow"></a>
 
@@ -783,8 +886,7 @@ Combines a tuple of list of chat histories into a tuple of two chat histories.
 
 **Arguments**:
 
-- `input_histories`: List of input chat histories.
-- `internal_histories`: List of internal chat histories.
+- `histories`: Tuple of list of chat histories.
 
 **Returns**:
 
@@ -885,8 +987,7 @@ Combines a tuple of list of chat histories into a tuple of two chat histories.
 
 **Arguments**:
 
-- `input_histories`: List of input chat histories.
-- `internal_histories`: List of internal chat histories.
+- `histories`: Tuple of list of chat histories.
 
 **Returns**:
 

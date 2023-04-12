@@ -275,11 +275,14 @@ class ChatFlow(BaseFlow):
         """
         Combines a tuple of list of chat histories into a tuple of two chat histories.
 
-        :param input_histories: List of input chat histories.
-        :param internal_histories: List of internal chat histories.
+        :param histories: Tuple of list of chat histories.
         :return: Tuple of combined input and internal chat histories.
         """
         input_histories, internal_histories = histories
+        
+        if len(input_histories) == 0 and len(internal_histories) == 0:
+            return ChatHistory(), ChatHistory()
+
         return (
             input_histories[0],
             ChatHistory(
@@ -356,7 +359,7 @@ class FuncChatFlow(ChatFlow):
         ],
         input_varnames: Set[str],
         output_varnames: Set[str],
-        default_chat_llm: Optional[ChatHistory] = None,
+        default_chat_llm: Optional[ChatLLM] = None,
         default_input_chat_history: Optional[ChatHistory] = None,
         verbose: bool = False,
     ) -> None:
@@ -376,6 +379,20 @@ class FuncChatFlow(ChatFlow):
         self.default_chat_llm = default_chat_llm
         self.default_input_chat_history = default_input_chat_history
         self.verbose = verbose
+
+    @property
+    def input_varnames(self):
+        """
+        :return: A deepcopy of input variable names.
+        """
+        return set(self._input_varnames)
+
+    @property
+    def output_varnames(self):
+        """
+        :return: A deepcopy of output variable names.
+        """
+        return set(self._output_varnames)
 
     def flow(
         self,
@@ -415,9 +432,9 @@ class FuncChatFlow(ChatFlow):
                 f"Output variables do not match output variable names.\nExpected: {self._output_varnames}\nActual: {outputs.keys()}"
             )
 
-        if len(new_input_chat_histories) != 1:
+        if len(new_input_chat_histories) > 1:
             raise ValueError(
-                f"FuncChatFlow func must return a single input chat history. Received {len(new_input_chat_histories)}"
+                f"FuncChatFlow func must return a empty or single input chat history. Received {len(new_input_chat_histories)}"
             )
 
         # if len(new_input_chat_histories) != len(internal_histories):
@@ -480,11 +497,17 @@ class MemoryChatFlow(ChatFlow):
         self._verbose = verbose
 
     @property
-    def input_varnames(self) -> Set[str]:
+    def input_varnames(self):
+        """
+        :return: A deepcopy of input variable names.
+        """
         return set(self._input_varnames)
 
     @property
-    def output_varnames(self) -> Set[str]:
+    def output_varnames(self):
+        """
+        :return: A deepcopy of output variable names.
+        """
         return set(self._output_varnames)
 
     def flow(
@@ -561,7 +584,7 @@ class ConditonalChatFlow(ChatFlow):
         self.default_input_chat_history = default_input_chat_history
         self._input_varnames = self._decision_chat_flow.input_varnames
         self._output_varnames = self._branch_chat_flows[
-            self._branch_chat_flows.keys()[0]
+            list(self._branch_chat_flows.keys())[0]
         ].output_varnames
         self._output_varnames.update(self._decision_chat_flow.output_varnames)
         self.verbose = verbose
@@ -649,7 +672,7 @@ class ConditonalChatFlow(ChatFlow):
 
         if input_chat_history is None:
             input_chat_history = self.default_input_chat_history
-        decision_variables, decision_histories = self._decision_chat_flow(
+        decision_variables, decision_histories = self._decision_chat_flow.flow(
             input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
         )
 
@@ -672,7 +695,7 @@ class ConditonalChatFlow(ChatFlow):
         if self._share_internal_history:
             messages += decision_histories[1].messages
         input_chat_history = ChatHistory(messages) if len(messages) > 0 else None
-        branch_variables, branch_histories = branch_chat_flow(
+        branch_variables, branch_histories = branch_chat_flow.flow(
             input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
         )
 
@@ -692,8 +715,7 @@ class ConditonalChatFlow(ChatFlow):
         """
         Combines a tuple of list of chat histories into a tuple of two chat histories.
 
-        :param input_histories: List of input chat histories.
-        :param internal_histories: List of internal chat histories.
+        :param histories: Tuple of list of chat histories.
         :return: Tuple of combined input and internal chat histories.
         """
         input_histories, internal_histories = histories
@@ -709,6 +731,7 @@ class SequentialChatFlows(ChatFlow):
 
     Limitations:
      - All chat flows use the input history returned by the first chat flow plus internal of previous chat flows.
+     - A chat flow can take an input and overwrite the original input with a new output with the same name. Be careful.
     """
 
     def __init__(
@@ -738,14 +761,10 @@ class SequentialChatFlows(ChatFlow):
             self._input_varnames.update(chat_flow.input_varnames)
             self._output_varnames.extend(chat_flow.output_varnames)
 
-        # check no output conflicts and that no outputs are in the inputs
+        # check no output conflicts
         if len(self._output_varnames) != len(set(self._output_varnames)):
             raise ValueError(
                 f"Output variable names conflict between chat flows. Output: {self._output_varnames}"
-            )
-        if len(self._input_varnames.intersection(self._output_varnames)) > 0:
-            raise ValueError(
-                f"Some output variable names are also in the input variable names.\nInput: {self._input_varnames}\nOutput: {self._output_varnames}"
             )
 
         self._output_varnames = set(self._output_varnames)
@@ -767,6 +786,20 @@ class SequentialChatFlows(ChatFlow):
         for chat_flow in self._chat_flows:
             chat_flow.verbose = verbose
         self._verbose = verbose
+
+    @property
+    def input_varnames(self):
+        """
+        :return: A deepcopy of input variable names.
+        """
+        return set(self._input_varnames)
+
+    @property
+    def output_varnames(self):
+        """
+        :return: A deepcopy of output variable names.
+        """
+        return set(self._output_varnames)
 
     def flow(
         self,
@@ -794,9 +827,11 @@ class SequentialChatFlows(ChatFlow):
         internal_histories = []
 
         for chat_flow in self._chat_flows:
-            chat_flow_output_variables, chat_flow_histories = chat_flow(
+            print(output_variables)
+            chat_flow_output_variables, chat_flow_histories = chat_flow.flow(
                 input_variables, chat_llm=chat_llm, input_chat_history=full_chat_history
             )
+            input_variables.update(chat_flow_output_variables)
             output_variables.update(chat_flow_output_variables)
 
             chat_flow_histories = chat_flow.compress_histories(chat_flow_histories)
@@ -820,7 +855,7 @@ class ConcurrentChatFlows(ChatFlow):
         chat_flows: List[ChatFlow],
         default_chat_llm: Optional[ChatLLM] = None,
         default_input_chat_history: Optional[ChatHistory] = None,
-        num_threads=None,
+        max_workers=None,
         verbose: bool = False,
     ) -> None:
         """
@@ -829,13 +864,13 @@ class ConcurrentChatFlows(ChatFlow):
         :param chat_flows: List of chat flows to run concurrently.
         :param default_chat_llm: Optional default chat language model used in flow, if not provided in flow call.
         :param default_input_chat_history: Optional default input chat history used in flow, if not provided in flow call.
-        :param num_threads: Number of threads to use for concurrent chat flows. If None, use all available threads.
+        :param max_workers: Number of threads to use for concurrent chat flows. If None, use all available threads.
         :param verbose: If True, print chat flow messages.
         """
         self._chat_flows = chat_flows
         self.default_chat_llm = default_chat_llm
         self.default_input_chat_history = default_input_chat_history
-        self.num_threads = num_threads
+        self.max_workers = max_workers
         self.verbose = verbose
 
         # create input_varnames and output_varnames
@@ -871,6 +906,20 @@ class ConcurrentChatFlows(ChatFlow):
             chat_flow.verbose = verbose
         self._verbose = verbose
 
+    @property
+    def input_varnames(self):
+        """
+        :return: A deepcopy of input variable names.
+        """
+        return set(self._input_varnames)
+
+    @property
+    def output_varnames(self):
+        """
+        :return: A deepcopy of output variable names.
+        """
+        return set(self._output_varnames)
+
     def flow(
         self,
         input_variables: dict,
@@ -895,7 +944,7 @@ class ConcurrentChatFlows(ChatFlow):
 
         def wrapper(chat_flow):
             nonlocal input_variables, chat_llm, input_chat_history
-            variables, histories = chat_flow(
+            variables, histories = chat_flow.flow(
                 input_variables,
                 chat_llm=chat_llm,
                 input_chat_history=input_chat_history,
@@ -904,7 +953,7 @@ class ConcurrentChatFlows(ChatFlow):
 
         # Run chat flows concurrently
         with concurrent.futures.ThreadPoolExecutor(
-            max_workers=self.num_threads
+            max_workers=self.max_workers
         ) as executor:
             for result in executor.map(wrapper, self._chat_flows):
                 chat_flow_output_variables, chat_flow_histories = result
@@ -920,8 +969,7 @@ class ConcurrentChatFlows(ChatFlow):
         """
         Combines a tuple of list of chat histories into a tuple of two chat histories.
 
-        :param input_histories: List of input chat histories.
-        :param internal_histories: List of internal chat histories.
+        :param histories: Tuple of list of chat histories.
         :return: Tuple of combined input and internal chat histories.
         """
         input_histories, internal_histories = histories
@@ -960,6 +1008,7 @@ class ChatSpiral(ChatFlow):
         """
         self._chat_flow = chat_flow
         self._output_varnames_remap = output_varnames_remap
+        self._input_variables = self._chat_flow.input_varnames
         self._output_varnames = self._chat_flow.output_varnames
         self.default_chat_llm = default_chat_llm
         self.default_input_chat_history = default_input_chat_history
@@ -986,7 +1035,7 @@ class ChatSpiral(ChatFlow):
 
     @property
     def input_varnames(self) -> Set[str]:
-        return set(self._input_variables.keys())
+        return set(self._input_variables)
 
     @property
     def output_varnames(self) -> Set[str]:
@@ -1011,7 +1060,7 @@ class ChatSpiral(ChatFlow):
         if input_chat_history is None:
             input_chat_history = self.default_input_chat_history
 
-        output_variables, histories = self._chat_flow(
+        output_variables, histories = self._chat_flow.flow(
             input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
         )
         histories = self._chat_flow.compress_histories(histories)
@@ -1064,8 +1113,7 @@ class ChatSpiral(ChatFlow):
         """
         Combines a tuple of list of chat histories into a tuple of two chat histories.
 
-        :param input_histories: List of input chat histories.
-        :param internal_histories: List of internal chat histories.
+        :param histories: Tuple of list of chat histories.
         :return: Tuple of combined input and internal chat histories.
         """
         input_histories, internal_histories = histories
@@ -1163,7 +1211,7 @@ class ChatFlowManager:
 
                 input_chat_history = ChatHistory(messages)
 
-            output_variables, chat_histories = self.chat_flow(
+            output_variables, chat_histories = self.chat_flow.flow(
                 input_variables,
                 chat_llm=chat_llm,
                 input_chat_history=input_chat_history,

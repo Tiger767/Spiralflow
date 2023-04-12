@@ -11,9 +11,11 @@ This project is designed to help with creating, formatting, and extracting data 
 *   `ChatLLM`: A class to interface with OpenAI's chat models.
 *   `ChatHistory`: A class to store a sequence of messages in a conversation.
 *   `ChatFlow`: A class to represent a conversation flow, combining input and output messages.
-*   `ChatFlows`: A class to represent ultiple conversation flows, flowing sequentially.
+*   `SequentialChatFlows`: A class to represent multiple conversation flows, flowing sequentially.
+*   `ConcurrentChatFlows`: A class to represent multiple conversation flows, flowing separately and concurrently.
 *   `ConditonalChatFlow`: A class to represent a conversation flow with multiple branches that depend on an output of a flow.
-*   `ChatFlowManager`: A class to manage multiple chat flows with their llms and conversation histories.
+*   `FuncChatFlow`: A class to represent a function in a conversation flow.
+*   `ChatSpiral`: A class to represent a spiral of conversation flows.
 
 Installation
 ------------
