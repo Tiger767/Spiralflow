@@ -31,6 +31,7 @@ To use this project, you will need to install the required dependencies:
 1.  Install Python 3.8 or higher.
 2.  Install the `openai` package: `pip install openai`.
 3.  Install the `regex` package: `pip install regex`.
+4.  Make sure OPENAI_API_KEY is set as an environment variable with your OpenAI API key.
 
 Usage
 -----
@@ -111,6 +112,93 @@ Assistant: {"analyses": {"a": "Paris is the capital of France, while Madrid is t
 User: Is the following you said true for Paris, France:
 Paris is the capital of France, while Madrid is the capital of Spain.
 Assistant: Yes, that statement is true. Paris is the capital of France, while Madrid is the capital of Spain.
+```
+
+Here is an example using a *spiral* and some of the more advanced features:
+
+```python
+from message import Role
+from chat_llm import ChatLLM
+from flow import ChatFlow, ConditonalChatFlow, FuncChatFlow, NoHistory, ChatSpiral
+
+decision_flow = ChatFlow.from_dicts([
+    {Role.USER: 'Options:\n\n'
+                '1. Keep asking and answering questions.\n\n'
+                '2. Choose this when you have provided 2 prompts in the total conversation history.\n\n'
+                'Only respond by typing the number of the option you choose. Say nothing else other than `1` or `2`.'},
+    {Role.ASSISTANT: '{decision}'}
+], verbose=True)
+
+branch1_flow = ChatFlow.from_dicts([
+    {Role.USER: 'Prompt: {prompt}\n\n'},
+    {Role.ASSISTANT: '{answer}'},
+    {Role.USER: 'Give me a new prompt.'},
+    {Role.ASSISTANT: '{prompt}'},
+], verbose=True)
+
+def quit(variables, chat_llm, input_chat_history):
+    raise ChatSpiral.Exit()
+
+branch2_flow = FuncChatFlow(
+    func=quit, input_varnames=set([]), output_varnames=set(['answer', 'prompt']), verbose=True
+)
+
+cond_flow = ConditonalChatFlow(NoHistory(decision_flow, allow_input_history=True, allow_rtn_input_history=True),
+                               {'1': branch1_flow, '2': branch2_flow}, verbose=True)
+
+a_spiral = ChatSpiral(cond_flow, verbose=False)
+
+chat_llm = ChatLLM(gpt_model="gpt-3.5-turbo", temperature=0.3)
+
+variables, history = a_spiral.spiral({'prompt': 'What is math?'}, chat_llm=chat_llm, max_iterations=10, reset_history=False)
+
+print("Extracted Variables:")
+for key, value in variables.items():
+    print(f"{key}: {value}\n")
+print("Chat History:")
+for message in history.messages:
+    print(f"{message.role.title()}: {message.content}")
+```
+
+This will output something like:
+
+```
+Extracted Variables:
+prompt: Sure, here's your new prompt:
+
+Explain the greenhouse effect and its impact on climate change.
+
+decision: 1
+
+answer: Artificial intelligence (AI) is a branch of computer science that deals with the creation of intelligent machines that can perform tasks that typically require human intelligence. AI involves the development of algorithms and computer programs that can learn from data, recognize patterns, and make decisions based on that information. 
+
+There are two main types of AI: narrow or weak AI and general or strong AI. Narrow AI is designed to perform a specific task, such as playing chess or driving a car. It is programmed to follow a set of rules and make decisions based on those rules. General AI, on the other hand, is designed to be more flexible and adaptable. It can learn and reason like a human, and can perform a wide range of tasks across different domains.
+
+AI is used in a variety of applications, from virtual assistants like Siri and Alexa to self-driving cars and medical diagnosis. It has the potential to revolutionize many industries and improve our lives in countless ways. However, there are also concerns about the ethical implications of AI, such as the potential for job displacement and the risk of bias in decision-making algorithms. As AI continues to evolve and become more advanced, it will be important to carefully consider these issues and ensure that the technology is used in a responsible and beneficial way.
+
+Chat History:
+User: Prompt: What is math?
+
+
+Assistant: Math, short for mathematics, is a subject that deals with the study of numbers, quantities, and shapes. It involves the use of logical reasoning and critical thinking to solve problems and make sense of the world around us. Math is a fundamental tool in many fields, including science, engineering, finance, and technology. It encompasses various branches such as algebra, geometry, calculus, statistics, and more. Math is not just about memorizing formulas and equations, but also about understanding concepts and applying them to real-world situations. It plays a crucial role in our daily lives, from calculating the cost of groceries to designing complex structures. Overall, math is a universal language that helps us make sense of the world and solve problems in a logical and systematic way.
+User: Give me a new prompt.
+Assistant: Sure, here's your new prompt: 
+
+Explain the concept of artificial intelligence.
+User: Prompt: Sure, here's your new prompt: 
+
+Explain the concept of artificial intelligence.
+
+
+Assistant: Artificial intelligence (AI) is a branch of computer science that deals with the creation of intelligent machines that can perform tasks that typically require human intelligence. AI involves the development of algorithms and computer programs that can learn from data, recognize patterns, and make decisions based on that information. 
+
+There are two main types of AI: narrow or weak AI and general or strong AI. Narrow AI is designed to perform a specific task, such as playing chess or driving a car. It is programmed to follow a set of rules and make decisions based on those rules. General AI, on the other hand, is designed to be more flexible and adaptable. It can learn and reason like a human, and can perform a wide range of tasks across different domains.
+
+AI is used in a variety of applications, from virtual assistants like Siri and Alexa to self-driving cars and medical diagnosis. It has the potential to revolutionize many industries and improve our lives in countless ways. However, there are also concerns about the ethical implications of AI, such as the potential for job displacement and the risk of bias in decision-making algorithms. As AI continues to evolve and become more advanced, it will be important to carefully consider these issues and ensure that the technology is used in a responsible and beneficial way.
+User: Give me a new prompt.
+Assistant: Sure, here's your new prompt:
+
+Explain the greenhouse effect and its impact on climate change.
 ```
 
 License

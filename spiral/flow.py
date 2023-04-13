@@ -456,7 +456,7 @@ class ChatFlowWrapper(ChatFlow):
         :param verbose: Whether to print verbose output.
         """
         self._chat_flow = chat_flow
-        self._verbose = verbose
+        self.verbose = verbose
 
     @property
     def verbose(self):
@@ -1264,12 +1264,22 @@ class ChatSpiral(ChatFlowWrapper):
             return variables, chat_history
 
     def __call__(
-        self, chat_llm: ChatLLM, return_all: bool = True
+        self,
+        input_variables: dict,
+        reset_history: bool = False,
+        chat_llm: Optional[ChatLLM] = None,
+        input_chat_history: Optional[ChatHistory] = None,
+        max_iterations: Optional[int] = None,
+        return_all: bool = True
     ) -> Tuple[Dict[str, str], ChatHistory]:
-        variables, histories = self.spiral(chat_llm)
+        variables, history = self.spiral(
+            input_variables, reset_history=reset_history,
+            chat_llm=chat_llm, input_chat_history=input_chat_history,
+            max_iterations=max_iterations
+        )
 
-        histories = self.compress_histories(histories)
-        history = ChatHistory(histories[0].messages + histories[1].messages)
+        #histories = self.compress_histories(histories)
+        #history = ChatHistory(histories[0].messages + histories[1].messages)
 
         if not return_all:
             variables = {
