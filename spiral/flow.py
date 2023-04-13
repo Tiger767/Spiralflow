@@ -198,8 +198,7 @@ class ChatFlow(BaseFlow):
             [] if input_chat_history is None else input_chat_history.messages
         )
         internal_chat_histories = []
-        all_variables = {}
-        all_variables.update(input_variables)
+        all_variables = dict(input_variables)
 
         for i in range(len(self._messages)):
             messages = []
@@ -752,8 +751,6 @@ class ConditonalChatFlow(ChatFlowWrapper):
         self,
         decision_chat_flow: ChatFlow,
         branch_chat_flows: Dict[str, ChatFlow],
-        share_input_history: bool = True,
-        share_internal_history: bool = True,
         default_chat_llm: Optional[ChatLLM] = None,
         default_input_chat_history: Optional[ChatHistory] = None,
         verbose: bool = False,
@@ -763,16 +760,12 @@ class ConditonalChatFlow(ChatFlowWrapper):
 
         :param decision_chat_flow: Chat flow for making the decision.
         :param branch_chat_flows: Dictionary of chat flows for each branch.
-        :param share_input_history: If True, share the input chat history between the decision and branch chat flows.
-        :param share_internal_history: If True, share the internal chat history between the decision and branch chat flows.
         :param default_chat_llm: Optional default chat language model used in flow, if not provided in flow call.
         :param default_input_chat_history: Optional default input chat history used in flow, if not provided in flow call.
         :param verbose: If True, print chat flow messages.
         """
         self._decision_chat_flow = decision_chat_flow
         self._branch_chat_flows = branch_chat_flows
-        self._share_input_history = share_input_history
-        self._share_internal_history = share_internal_history
         self.default_chat_llm = default_chat_llm
         self.default_input_chat_history = default_input_chat_history
         # should not mutate varnames, but if chat flow does, this will break, since will not update
@@ -883,19 +876,14 @@ class ConditonalChatFlow(ChatFlowWrapper):
         input_variables = copy.deepcopy(input_variables)
         input_variables.update(decision_variables)
 
-        messages = []
-        if self._share_input_history:
-            messages += input_chat_history.messages
-        if self._share_internal_history:
-            messages += decision_histories[1].messages
-        input_chat_history = ChatHistory(messages) if len(messages) > 0 else None
+        input_chat_history = ChatHistory(decision_histories[0].messages + decision_histories[1].messages)
         branch_variables, branch_histories = branch_chat_flow.flow(
             input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
         )
 
         branch_histories = branch_chat_flow.compress_histories(branch_histories)
 
-        branch_variables.update(decision_variables)
+        decision_variables.update(branch_variables)
 
         # ADD IF RETURN DECISON AND BRANCH OR JUST BRANCH
         return branch_variables, (
@@ -1252,11 +1240,16 @@ class ChatSpiral(ChatFlowWrapper):
         reset_history: bool = False,
         chat_llm: Optional[ChatLLM] = None,
         input_chat_history: Optional[ChatHistory] = None,
+        max_iterations: Optional[int] = None,
     ) -> Tuple[Dict[str, str], ChatHistory]:
         variables = dict(input_variables)
         chat_history = input_chat_history
         try:
+            count = 0
             while True:
+                if max_iterations is not None and count >= max_iterations:
+                    raise ChatSpiral.Exit
+
                 new_variables, histories = self.flow(
                     variables, chat_llm=chat_llm, input_chat_history=chat_history
                 )
@@ -1265,6 +1258,8 @@ class ChatSpiral(ChatFlowWrapper):
                     chat_history = ChatHistory(
                         histories[0][0].messages + histories[1][0].messages
                     )
+
+                count += 1
         except ChatSpiral.Exit:
             return variables, chat_history
 
