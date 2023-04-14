@@ -31,6 +31,7 @@ To use this project, you will need to install the required dependencies:
 1.  Install Python 3.8 or higher.
 2.  Install the `openai` package: `pip install openai`.
 3.  Install the `regex` package: `pip install regex`.
+4.  Install the `spiral` package: `pip install git+https://github.com/Tiger767/spiral`.
 4.  Make sure OPENAI_API_KEY is set as an environment variable with your OpenAI API key.
 
 Usage
@@ -39,16 +40,16 @@ Usage
 Here is a quick example to demonstrate how to use the project:
 
 ```python
-from message import (
+from spiral.message import (
     Role,
     InputMessage,
     OutputMessage,
     InputJSONMessage,
     OutputJSONMessage,
 )
-from chat_llm import ChatLLM
-from chat_history import ChatHistory
-from flow import ChatFlow
+from spiral.chat_llm import ChatLLM
+from spiral.chat_history import ChatHistory
+from spiral.flow import ChatFlow
 
 
 # Create input and output messages
@@ -117,9 +118,9 @@ Assistant: Yes, that statement is true. Paris is the capital of France, while Ma
 Here is an example using a *spiral* and some of the more advanced features:
 
 ```python
-from message import Role
-from chat_llm import ChatLLM
-from flow import ChatFlow, ConditonalChatFlow, FuncChatFlow, NoHistory, ChatSpiral
+from spiral.message import Role
+from spiral.chat_llm import ChatLLM
+from spiral.flow import ChatFlow, ConditonalChatFlow, FuncChatFlow, NoHistory, ChatSpiral
 
 decision_flow = ChatFlow.from_dicts([
     {Role.USER: 'Options:\n\n'
