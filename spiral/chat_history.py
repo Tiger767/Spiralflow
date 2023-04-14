@@ -1,7 +1,7 @@
 import copy
 from typing import Any, Dict, List, Optional
 
-from message import Message
+from .message import Message
 
 
 class ChatHistory:

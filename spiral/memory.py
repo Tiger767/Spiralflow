@@ -3,8 +3,9 @@ import faiss
 import numpy as np
 import pandas as pd
 import ast
-from openai.embeddings_utils import get_embedding, cosine_similarity
 import tiktoken
+from openai.embeddings_utils import get_embedding
+
 
 
 class Memory:

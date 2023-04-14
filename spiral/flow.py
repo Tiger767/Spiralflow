@@ -3,7 +3,7 @@ import copy
 from abc import ABC, abstractmethod
 import concurrent.futures
 
-from message import (
+from .message import (
     Message,
     InputMessage,
     OutputMessage,
@@ -12,9 +12,9 @@ from message import (
     Role,
     ExtractionError,
 )
-from chat_history import ChatHistory, ChatHistoryManager
-from chat_llm import ChatLLM
-from memory import Memory
+from .chat_history import ChatHistory, ChatHistoryManager
+from .chat_llm import ChatLLM
+from .memory import Memory
 
 
 def combine_chat_histories(chat_histories):

@@ -1,7 +1,7 @@
 from typing import Dict, List, Tuple
 import openai
 
-from message import Message
+from .message import Message
 
 
 class ChatLLM:
