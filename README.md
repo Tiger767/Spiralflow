@@ -29,9 +29,8 @@ Installation
 To use this project, you will need to install the required dependencies:
 
 1.  Install Python 3.9 or higher.
-2.  Install the `openai` package: `pip install openai`.
-3.  Install the `regex` package: `pip install regex`.
-4.  Install the `spiral` package: `git clone https://github.com/Tiger767/spiral.git` and then `pip install .` inside the repo.
+2.  Install the `openai`, `tiktoken`, `pandas`, `faiss` packages: `pip install openai tiktoken pandas faiss`.
+3.  Install the this package: `git clone https://github.com/Tiger767/spiral.git` and then `pip install .` inside the repo.
 4.  Make sure OPENAI_API_KEY is set as an environment variable with your OpenAI API key.
 
 Usage

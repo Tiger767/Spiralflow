@@ -759,7 +759,7 @@ class ConditonalChatFlow(ChatFlowWrapper):
         Initializes a ConditonalChatFlow.
 
         :param decision_chat_flow: Chat flow for making the decision.
-        :param branch_chat_flows: Dictionary of chat flows for each branch.
+        :param branch_chat_flows: Dictionary of chat flows for each branch. Use `default` as the key for the default branch.
         :param default_chat_llm: Optional default chat language model used in flow, if not provided in flow call.
         :param default_input_chat_history: Optional default input chat history used in flow, if not provided in flow call.
         :param verbose: If True, print chat flow messages.
@@ -868,15 +868,19 @@ class ConditonalChatFlow(ChatFlowWrapper):
         )
 
         decision = decision_variables["decision"]
-        try:
+        if decision in self._branch_chat_flows:
             branch_chat_flow = self._branch_chat_flows[decision]
-        except KeyError:
+        elif "default" in self._branch_chat_flows:
+            branch_chat_flow = self._branch_chat_flows["default"]
+        else:
             raise ExtractionError(f"Invalid decision: {decision}")
 
         input_variables = copy.deepcopy(input_variables)
         input_variables.update(decision_variables)
 
-        input_chat_history = ChatHistory(decision_histories[0].messages + decision_histories[1].messages)
+        input_chat_history = ChatHistory(
+            decision_histories[0].messages + decision_histories[1].messages
+        )
         branch_variables, branch_histories = branch_chat_flow.flow(
             input_variables, chat_llm=chat_llm, input_chat_history=input_chat_history
         )
@@ -1270,16 +1274,18 @@ class ChatSpiral(ChatFlowWrapper):
         chat_llm: Optional[ChatLLM] = None,
         input_chat_history: Optional[ChatHistory] = None,
         max_iterations: Optional[int] = None,
-        return_all: bool = True
+        return_all: bool = True,
     ) -> Tuple[Dict[str, str], ChatHistory]:
         variables, history = self.spiral(
-            input_variables, reset_history=reset_history,
-            chat_llm=chat_llm, input_chat_history=input_chat_history,
-            max_iterations=max_iterations
+            input_variables,
+            reset_history=reset_history,
+            chat_llm=chat_llm,
+            input_chat_history=input_chat_history,
+            max_iterations=max_iterations,
         )
 
-        #histories = self.compress_histories(histories)
-        #history = ChatHistory(histories[0].messages + histories[1].messages)
+        # histories = self.compress_histories(histories)
+        # history = ChatHistory(histories[0].messages + histories[1].messages)
 
         if not return_all:
             variables = {

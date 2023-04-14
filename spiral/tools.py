@@ -11,9 +11,14 @@ class BaseTool(ABC):
 
 
 class GoogleSearchTool(BaseTool):
-    def __init__(self, api_key: str, cse_id: str, num_results: int = 10,
-                 failed_search_result: str = 'No google search results found.',
-                 join_snippets: Optional[str] = '\n') -> None:
+    def __init__(
+        self,
+        api_key: str,
+        cse_id: str,
+        num_results: int = 10,
+        failed_search_result: str = "No google search results found.",
+        join_snippets: Optional[str] = "\n",
+    ) -> None:
         """
         Initialize the GoogleSearchTool.
 
@@ -34,24 +39,28 @@ class GoogleSearchTool(BaseTool):
         :param query: The query to search for.
         :return: The search results.
         """
-        results = self.engine.cse().list(q=query, cx=self.cse_id, num=self.num_results).execute()
+        results = (
+            self.engine.cse()
+            .list(q=query, cx=self.cse_id, num=self.num_results)
+            .execute()
+        )
         return results.get("items")
-    
+
     def use(self, inputs: Dict[str, str]) -> Union[str, list[str]]:
         """
         :param inputs: The inputs to the tool. Must contain a 'query' key.
         :return: The output of the tool: Google search snippets.
         """
-        query = inputs['query']
+        query = inputs["query"]
         results = self.search(query)
         if results is None:
             return self.failed_search_result
-        
-        output = [result['snippet'] for result in results if 'snippet' in result]
+
+        output = [result["snippet"] for result in results if "snippet" in result]
         if self.join_snippets is not None:
             output = self.join_snippets.join(output)
         return output
-    
+
 
 class FileTool(BaseTool):
     pass

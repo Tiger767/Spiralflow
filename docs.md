@@ -855,8 +855,6 @@ A class for creating conditional chat flows, which shift flows based on the outp
 ```python
 def __init__(decision_chat_flow: ChatFlow,
              branch_chat_flows: Dict[str, ChatFlow],
-             share_input_history: bool = True,
-             share_internal_history: bool = True,
              default_chat_llm: Optional[ChatLLM] = None,
              default_input_chat_history: Optional[ChatHistory] = None,
              verbose: bool = False)
@@ -867,9 +865,7 @@ Initializes a ConditonalChatFlow.
 **Arguments**:
 
 - `decision_chat_flow`: Chat flow for making the decision.
-- `branch_chat_flows`: Dictionary of chat flows for each branch.
-- `share_input_history`: If True, share the input chat history between the decision and branch chat flows.
-- `share_internal_history`: If True, share the internal chat history between the decision and branch chat flows.
+- `branch_chat_flows`: Dictionary of chat flows for each branch. Use `default` as the key for the default branch.
 - `default_chat_llm`: Optional default chat language model used in flow, if not provided in flow call.
 - `default_input_chat_history`: Optional default input chat history used in flow, if not provided in flow call.
 - `verbose`: If True, print chat flow messages.
@@ -1271,12 +1267,76 @@ Tuple of combined input and internal chat histories.
 class Memory()
 ```
 
+<a id="memory.Memory.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(filepath: Optional[str] = None,
+             embedding_model: str = "text-embedding-ada-002",
+             max_tokens: int = 500) -> None
+```
+
+Initializes the memory.
+
+**Arguments**:
+
+- `filepath`: Path to a pickle file to load and save the memory to.
+If None, the memory is created with text and metadata fields.
+- `embedding_model`: Model to use for the embedding.
+- `max_tokens`: Maximum number of tokens to use for the embedding.
+
+<a id="memory.Memory.save"></a>
+
+#### save
+
+```python
+def save(filepath: Optional[str] = None) -> None
+```
+
+Saves the memory to a file.
+
+**Arguments**:
+
+- `filepath`: Path to the pickle file to save the memory to. If None, the filepath passed in the constructor is used.
+
+<a id="memory.Memory.load"></a>
+
+#### load
+
+```python
+def load(filepath: Optional[str] = None) -> None
+```
+
+**Arguments**:
+
+- `filepath`: Path to a pickle file to load the memory from. If None, the filepath passed in the constructor is used.
+
+<a id="memory.Memory.add"></a>
+
+#### add
+
+```python
+def add(data: Dict[str, str],
+        save: bool = False,
+        filepath: Optional[str] = None) -> None
+```
+
+Adds data to memory.
+
+**Arguments**:
+
+- `data`: Dict of data with a text and metadata field to add to memory.
+- `save`: Whether to save the memory to a file.
+- `filepath`: Path to the file (csv or parquet) to save the memory to.
+If None, the filepath passed in the constructor is used.
+
 <a id="memory.Memory.query"></a>
 
 #### query
 
 ```python
-def query(query: str, k=1) -> str
+def query(query: str, k: int = 1) -> list[Dict[str, str]]
 ```
 
 Queries the memory with the given query.
@@ -1697,4 +1757,74 @@ Extract JSON Dict from the message content.
 **Returns**:
 
 A dictionary containing the extracted variables.
+
+<a id="tools"></a>
+
+# tools
+
+<a id="tools.GoogleSearchTool"></a>
+
+## GoogleSearchTool Objects
+
+```python
+class GoogleSearchTool(BaseTool)
+```
+
+<a id="tools.GoogleSearchTool.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(api_key: str,
+             cse_id: str,
+             num_results: int = 10,
+             failed_search_result: str = "No google search results found.",
+             join_snippets: Optional[str] = "\n") -> None
+```
+
+Initialize the GoogleSearchTool.
+
+**Arguments**:
+
+- `api_key`: The Google API key.
+- `cse_id`: The Google Custom Search Engine ID.
+- `num_results`: The max number of results to return.
+- `failed_search_result`: The result to return if the search fails.
+- `join_snippets`: The string to join the snippets with. If None, the snippets will be returned as a list.
+
+<a id="tools.GoogleSearchTool.search"></a>
+
+#### search
+
+```python
+def search(query: str) -> Optional[list]
+```
+
+**Arguments**:
+
+- `query`: The query to search for.
+
+**Returns**:
+
+The search results.
+
+<a id="tools.GoogleSearchTool.use"></a>
+
+#### use
+
+```python
+def use(inputs: Dict[str, str]) -> Union[str, list[str]]
+```
+
+**Arguments**:
+
+- `inputs`: The inputs to the tool. Must contain a 'query' key.
+
+**Returns**:
+
+The output of the tool: Google search snippets.
+
+<a id="__init__"></a>
+
+# \_\_init\_\_
 
