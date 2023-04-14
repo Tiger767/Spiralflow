@@ -7,6 +7,50 @@ import tiktoken
 from openai.embeddings_utils import get_embedding
 
 
+def combine_on_overlap(str1: str, str2: str, threshold: float) -> Optional[str]:
+    """
+    Combines two strings if they overlap by a certain threshold.
+
+    :param str1: First string to combine.
+    :param str2: Second string to combine.
+    :param threshold: Threshold for ratio of overlap to combine results from multiple queries.
+    :return: Combined string if they overlap by a certain threshold, otherwise None.
+    """
+    if str1 in str2:
+        return str2
+    if str2 in str1:
+        return str1
+
+    max_overlap = min(len(str1), len(str2))
+    best_overlap = 0
+    best_overlap_index = -1
+    overlap_type = None
+
+    # Check for overlaps at the end of str1 and the beginning of str2
+    for i in range(1, max_overlap + 1):
+        if str1[-i:] == str2[:i] and i / len(str2) > threshold:
+            if i > best_overlap:
+                best_overlap = i
+                best_overlap_index = i
+                overlap_type = 'end_start'
+
+    # Check for overlaps at the beginning of str1 and the end of str2
+    for i in range(1, max_overlap + 1):
+        if str1[:i] == str2[-i:] and i / len(str1) > threshold:
+            if i > best_overlap:
+                best_overlap = i
+                best_overlap_index = i
+                overlap_type = 'start_end'
+
+    if best_overlap_index != -1:
+        if overlap_type == 'end_start':
+            return str1 + str2[best_overlap_index:]
+        elif overlap_type == 'start_end':
+            return str2 + str1[best_overlap_index:]
+    else:
+        return None
+        
+
 class Memory:
     def __init__(
         self,
@@ -103,12 +147,14 @@ class Memory:
         if save:
             self.save(filepath)
 
-    def query(self, query: str, k: int = 1) -> list[Dict[str, str]]:
+    def query(self, query: str, k: int = 1, combine_threshold: Optional[float] = None) -> list[Dict[str, str]]:
         """
         Queries the memory with the given query.
 
         :param query: Query to use to get memory.
-        :param k: Number of results to return.
+        :param k: Max number of results to return.
+        :param combine_threshold: Threshold for ratio of overlap to combine results from multiple queries.
+                                  If None, no combining is done.
         :return: Memory obtained from external memories.
         """
         if self.data.empty:
@@ -125,13 +171,29 @@ class Memory:
         embeded_query = np.array([get_embedding(query, engine=self.embedding_model)])
 
         # search for the indexes with similar embeddings
-        _, similar_indexes = self.index.search(embeded_query, k=k)
+        scores, similar_indexes = self.index.search(embeded_query, k=k)
+
+        print(scores)
 
         # get the memory values at the found indexes
         memories = []
 
-        for i in similar_indexes[0]:
-            memory = {"text": self.data.iloc[i, 0], "metadata": self.data.iloc[i, 1]}
+        for score, i in zip(scores[0], similar_indexes[0]):
+            memory = {"text": self.data.iloc[i, 0], "metadata": self.data.iloc[i, 1], "score": score}
             memories.append(memory)
+
+        if combine_threshold is not None and len(memories) > 1:
+            # Need to improve algorithm as may miss some overlaps
+            combined_memories = []
+            for i in range(len(memories)):
+                for j in range(len(combined_memories)):
+                    combined_doc = combine_on_overlap(combined_memories[j]['text'], memories[i]['text'], combine_threshold)
+                    if combined_doc is not None:
+                        combined_memories[j]['text'] = combined_doc
+                        combined_memories[j]['score'] = min(combined_memories[j]['score'], memories[i]['score'])
+                        break
+                else:
+                    combined_memories.append(memories[i])
+            memories = combined_memories
 
         return memories

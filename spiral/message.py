@@ -386,7 +386,7 @@ class OutputJSONMessage(OutputMessage):
             .replace("\\}", "}")
             .format(**{name: "(?P<{}>[\s\S]*)".format(name) for name in names})
         )
-        result = re.match(pattern, content)
+        result = re.search(pattern, content)
         if result is None:
             raise ExtractionError(
                 f"Could not extract variables from JSON message content.\nContent format: {content_format}\nPattern: {pattern}\nContent: {content}"
