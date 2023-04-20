@@ -1259,6 +1259,27 @@ Tuple of combined input and internal chat histories.
 
 # memory
 
+<a id="memory.combine_on_overlap"></a>
+
+#### combine\_on\_overlap
+
+```python
+def combine_on_overlap(str1: str, str2: str,
+                       threshold: float) -> Optional[str]
+```
+
+Combines two strings if they overlap by a certain threshold.
+
+**Arguments**:
+
+- `str1`: First string to combine.
+- `str2`: Second string to combine.
+- `threshold`: Threshold for ratio of overlap to combine results from multiple queries.
+
+**Returns**:
+
+Combined string if they overlap by a certain threshold, otherwise None.
+
 <a id="memory.Memory"></a>
 
 ## Memory Objects
@@ -1336,7 +1357,9 @@ If None, the filepath passed in the constructor is used.
 #### query
 
 ```python
-def query(query: str, k: int = 1) -> list[Dict[str, str]]
+def query(query: str,
+          k: int = 1,
+          combine_threshold: Optional[float] = None) -> list[Dict[str, str]]
 ```
 
 Queries the memory with the given query.
@@ -1344,7 +1367,9 @@ Queries the memory with the given query.
 **Arguments**:
 
 - `query`: Query to use to get memory.
-- `k`: Number of results to return.
+- `k`: Max number of results to return.
+- `combine_threshold`: Threshold for ratio of overlap to combine results from multiple queries.
+If None, no combining is done.
 
 **Returns**:
 
@@ -1752,6 +1777,70 @@ Extract JSON Dict from the message content.
 
 - `names`: A list of variable names.
 - `content_format`: The message content format.
+- `content`: The message content to extract variables from.
+
+**Returns**:
+
+A dictionary containing the extracted variables.
+
+<a id="message.OutputOptions"></a>
+
+## OutputOptions Objects
+
+```python
+class OutputOptions(OutputMessage)
+```
+
+A wrapper class to represent a message with multiple OutputMessage options.
+
+This class will try each OutputMessage sequentially until it does not raise an
+ExtractionError. It will return the extracted variables from the successful
+OutputMessage along with all the other variables that were not in that output
+with an empty string.
+
+<a id="message.OutputOptions.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(output_messages: List[OutputMessage],
+             role: Optional[str] = Role.ASSISTANT)
+```
+
+Initializes the OutputOptions class with the given parameters.
+
+**Arguments**:
+
+- `output_messages`: A list of OutputMessage instances.
+- `role`: Role associated with the message (default is None).
+
+<a id="message.OutputOptions.output_messages"></a>
+
+#### output\_messages
+
+```python
+@property
+def output_messages() -> List[OutputMessage]
+```
+
+Returns the list of OutputMessage instances.
+
+**Returns**:
+
+The list of OutputMessage instances.
+
+<a id="message.OutputOptions.extract_variables"></a>
+
+#### extract\_variables
+
+```python
+def extract_variables(content) -> Dict[str, Any]
+```
+
+Extract variables from the message content.
+
+**Arguments**:
+
 - `content`: The message content to extract variables from.
 
 **Returns**:

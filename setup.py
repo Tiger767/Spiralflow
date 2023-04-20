@@ -4,13 +4,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="chat-spiral",
-    version="0.0.5",
+    name="spiralflow",
+    version="0.0.2",
     author="Travis Hammond",
     description="A framework for creating chat spirals for Large Language Models finetuned for conversations. Currently work-in-progress.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Tiger767/spiral",
+    url="https://github.com/Tiger767/Spiralflow",
     packages=setuptools.find_packages(),
     install_requires=[
         "regex",
