@@ -272,7 +272,7 @@ class OutputMessage(Message):
             )
             result = re.match(pattern, content)
             if result is None:
-                raise ValueError(
+                raise ExtractionError(
                     f"Could not extract variables from message content.\nContent Format: {self._content_format}\nPattern: {pattern}\nContent: {content}"
                 )
             return result.groupdict()
@@ -405,3 +405,75 @@ class OutputJSONMessage(OutputMessage):
                 f"Could not decode variables from JSON message content.\n\n{varname}:\n{varvalue}"
             )
         return json_variables
+
+
+class OutputOptions(OutputMessage):
+    """
+    A wrapper class to represent a message with multiple OutputMessage options.
+
+    This class will try each OutputMessage sequentially until it does not raise an
+    ExtractionError. It will return the extracted variables from the successful
+    OutputMessage along with all the other variables that were not in that output
+    with an empty string.
+    """
+
+    def __init__(
+        self,
+        output_messages: List[OutputMessage],
+        role: Optional[str] = Role.ASSISTANT,
+    ):
+        """
+        Initializes the OutputOptions class with the given parameters.
+
+        :param output_messages: A list of OutputMessage instances.
+        :param role: Role associated with the message (default is None).
+        """
+        self._content_format = ""
+        self._content = None
+        self._role = role
+
+        self._variables = {}
+        self._varnames = set()
+        for message in output_messages:
+            self._variables.update(message.variables)
+            self._varnames.update(message.varnames)
+            if message.role != role:
+                raise ValueError(
+                    f"OutputMessage role {message.role} does not match OutputOptions role {role}"
+                )
+
+        self._const = False
+
+        self._output_messages = output_messages
+
+    @property
+    def output_messages(self) -> List[OutputMessage]:
+        """
+        Returns the list of OutputMessage instances.
+
+        :return: The list of OutputMessage instances.
+        """
+        return list(self._output_messages)
+
+    def extract_variables(self, content) -> Dict[str, Any]:
+        """
+        Extract variables from the message content.
+
+        :param content: The message content to extract variables from.
+        :return: A dictionary containing the extracted variables.
+        """
+        for message in self.output_messages:
+            try:
+                extracted_variables = message.extract_variables(content)
+                break
+            except ExtractionError:
+                continue
+        else:
+            raise ExtractionError(
+                "Could not extract variables from message content using any of the OutputMessage options."
+            )
+
+        for var in self._varnames.difference(extracted_variables.keys()):
+            extracted_variables[var] = ""
+
+        return extracted_variables

@@ -1,4 +1,4 @@
-# spiral (Work-In-Progress)
+# spiral-flow (Work-In-Progress)
 A framework for creating guided spirals for Large Language Models
 
 This project is designed to help with creating, formatting, and extracting data from text-based conversations with OpenAI language models to allow for more complicated ideas such as Flows and Spirals. It includes the following key components:
@@ -40,16 +40,16 @@ Usage
 Here is a quick example to demonstrate how to use the project:
 
 ```python
-from spiral.message import (
+from spiralflow.message import (
     Role,
     InputMessage,
     OutputMessage,
     InputJSONMessage,
     OutputJSONMessage,
 )
-from spiral.chat_llm import ChatLLM
-from spiral.chat_history import ChatHistory
-from spiral.flow import ChatFlow
+from spiralflow.chat_llm import ChatLLM
+from spiralflow.chat_history import ChatHistory
+from spiralflow.flow import ChatFlow
 
 
 # Create input and output messages
@@ -118,9 +118,9 @@ Assistant: Yes, that statement is true. Paris is the capital of France, while Ma
 Here is an example using a *spiral* and some of the more advanced features:
 
 ```python
-from spiral.message import Role
-from spiral.chat_llm import ChatLLM
-from spiral.flow import ChatFlow, ConditonalChatFlow, FuncChatFlow, NoHistory, ChatSpiral
+from spiralflow.message import Role
+from spiralflow.chat_llm import ChatLLM
+from spiralflow.flow import ChatFlow, ConditonalChatFlow, FuncChatFlow, NoHistory, ChatSpiral
 
 decision_flow = ChatFlow.from_dicts([
     {Role.USER: 'Options:\n\n'

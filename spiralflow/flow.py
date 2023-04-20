@@ -570,6 +570,41 @@ class NoHistory(ChatFlowWrapper):
         return variables, histories
 
 
+class NoOldSystemHistory(ChatFlowWrapper):
+    def __init__(
+        self, chat_flow: ChatFlow, keep_first: bool = False, verbose: bool = False
+    ) -> None:
+        super().__init__(chat_flow, verbose)
+        self.keep_first = keep_first
+
+    def flow(
+        self,
+        input_variables: dict,
+        chat_llm: Optional[ChatLLM] = None,
+        input_chat_history: Optional[ChatHistory] = None,
+    ) -> Tuple[Dict[str, str], Tuple[List[ChatHistory], List[ChatHistory]]]:
+        if input_chat_history is None:
+            mod_input_chat_history = None
+        else:
+            mod_input_chat_history = ChatHistory()
+            sys_count = 0
+            for message in input_chat_history.messages:
+                if message.role == Role.SYSTEM:
+                    if self.keep_first and sys_count == 0:
+                        mod_input_chat_history.add_message(message)
+                    sys_count += 1
+                else:
+                    mod_input_chat_history.add_message(message)
+
+        variables, histories = self._chat_flow.flow(
+            input_variables,
+            chat_llm=chat_llm,
+            input_chat_history=mod_input_chat_history,
+        )
+
+        return variables, histories
+
+
 class History(ChatFlowWrapper):
     """
     A class that wraps a ChatFlow and uses a history manager to import and export histories to other

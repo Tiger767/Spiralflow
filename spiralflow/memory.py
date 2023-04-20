@@ -32,7 +32,7 @@ def combine_on_overlap(str1: str, str2: str, threshold: float) -> Optional[str]:
             if i > best_overlap:
                 best_overlap = i
                 best_overlap_index = i
-                overlap_type = 'end_start'
+                overlap_type = "end_start"
 
     # Check for overlaps at the beginning of str1 and the end of str2
     for i in range(1, max_overlap + 1):
@@ -40,16 +40,16 @@ def combine_on_overlap(str1: str, str2: str, threshold: float) -> Optional[str]:
             if i > best_overlap:
                 best_overlap = i
                 best_overlap_index = i
-                overlap_type = 'start_end'
+                overlap_type = "start_end"
 
     if best_overlap_index != -1:
-        if overlap_type == 'end_start':
+        if overlap_type == "end_start":
             return str1 + str2[best_overlap_index:]
-        elif overlap_type == 'start_end':
+        elif overlap_type == "start_end":
             return str2 + str1[best_overlap_index:]
     else:
         return None
-        
+
 
 class Memory:
     def __init__(
@@ -147,7 +147,9 @@ class Memory:
         if save:
             self.save(filepath)
 
-    def query(self, query: str, k: int = 1, combine_threshold: Optional[float] = None) -> list[Dict[str, str]]:
+    def query(
+        self, query: str, k: int = 1, combine_threshold: Optional[float] = None
+    ) -> list[Dict[str, str]]:
         """
         Queries the memory with the given query.
 
@@ -179,7 +181,11 @@ class Memory:
         memories = []
 
         for score, i in zip(scores[0], similar_indexes[0]):
-            memory = {"text": self.data.iloc[i, 0], "metadata": self.data.iloc[i, 1], "score": score}
+            memory = {
+                "text": self.data.iloc[i, 0],
+                "metadata": self.data.iloc[i, 1],
+                "score": score,
+            }
             memories.append(memory)
 
         if combine_threshold is not None and len(memories) > 1:
@@ -187,10 +193,16 @@ class Memory:
             combined_memories = []
             for i in range(len(memories)):
                 for j in range(len(combined_memories)):
-                    combined_doc = combine_on_overlap(combined_memories[j]['text'], memories[i]['text'], combine_threshold)
+                    combined_doc = combine_on_overlap(
+                        combined_memories[j]["text"],
+                        memories[i]["text"],
+                        combine_threshold,
+                    )
                     if combined_doc is not None:
-                        combined_memories[j]['text'] = combined_doc
-                        combined_memories[j]['score'] = min(combined_memories[j]['score'], memories[i]['score'])
+                        combined_memories[j]["text"] = combined_doc
+                        combined_memories[j]["score"] = min(
+                            combined_memories[j]["score"], memories[i]["score"]
+                        )
                         break
                 else:
                     combined_memories.append(memories[i])
