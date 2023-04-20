@@ -1,4 +1,4 @@
-# spiral-flow (Work-In-Progress)
+# spiralflow (Work-In-Progress)
 A framework for creating guided spirals for Large Language Models
 
 This project is designed to help with creating, formatting, and extracting data from text-based conversations with OpenAI language models to allow for more complicated ideas such as Flows and Spirals. It includes the following key components:
