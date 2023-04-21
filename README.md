@@ -22,6 +22,9 @@ This project is designed to help with creating, formatting, and extracting data 
 *   `ConcurrentChatFlows`: A class to represent multiple conversation flows, flowing separately and concurrently.
 *   `ChatSpiral`: A class to represent a spiral of conversation flows.
 
+Example Projects
+------------
+[Data Chat](https://github.com/Tiger767/spiralflow-data-chat) - A constructued ChatFlow for responding to prompts using your data, google search results, and general LLM knowledge.
 
 Installation
 ------------
