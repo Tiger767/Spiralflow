@@ -73,9 +73,15 @@ class FileTool(BaseTool):
         :param path: The path to the file.
         """
         self.path = os.path.abspath(path)
-        self.commands = ["read", "r", "write", "w", "append", "a", "cd", "chdir", "change directory", "ls", "list", "mkdir", "make directory"]
+        self.commands = ["read", "r", "write", "w", "append", "a", "cd", "chdir", "change_directory", "ls", "list", "mkdir", "make_directory"]
 
     def check_required_inputs(self, required_inputs: list[str], inputs: list[str]) -> str:
+        """
+        Checks if the required inputs are in the inputs list. If not, raises a ValueError.
+
+        :param required_inputs: The required inputs.
+        :param inputs: The inputs to check.
+        """
         missing_inputs = []
         for input in required_inputs:
             if input not in inputs:
@@ -117,6 +123,13 @@ class FileTool(BaseTool):
     def use(self, inputs: Dict[str, str]) -> Union[str, list[str]]:
         """
         :param inputs: The inputs to the tool. Must contain a 'command' key.
+                        Depending on the 'command' value, other keys will be required as follows: 
+                        [read, r]: file
+                        [write, w]: file, data
+                        [append, a]: file, data
+                        [cd, chdir, change directory]: path
+                        [ls, list]: path
+                        [mkdir, make directory]: path
         :return: The output of the tool: The contents of the file.
         """
         command = inputs["command"]
@@ -140,14 +153,14 @@ class FileTool(BaseTool):
             with open(file_path, "a") as f:
                 f.write(inputs["data"])
                 return "APPENDED: " + inputs["data"] + "\nTO: " + file_path
-        elif command in ["cd", "chdir", "change directory"]:
+        elif command in ["cd", "chdir", "change_directory"]:
             self.check_required_inputs(required_inputs=["path"], inputs=inputs.keys())
 
             self.path = os.path.abspath(inputs["path"])
             return "CHANGED DIRECTORY TO: " + self.path
         elif command in ["ls", "list"]:
             return os.listdir(self.path)
-        elif command in ["mkdir", "make directory"]:
+        elif command in ["mkdir", "make_directory"]:
             self.check_required_inputs(required_inputs=["directory"], inputs=inputs.keys())
 
             directory_path = os.path.join(self.path, inputs["directory"])
