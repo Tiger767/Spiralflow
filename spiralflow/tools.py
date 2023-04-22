@@ -156,7 +156,7 @@ class FileTool(BaseTool):
             os.mkdir(directory_path)
             return "CREATED DIRECTORY: " + directory_path
         else:
-            raise ValueError(f"Invalid command: {command} \n\tDid you mean: {self.get_closest_possible_command(command)}?")
+            raise ValueError(f"Invalid command: {command} \n\tDid you mean: {self.get_closest_command(command)}?")
 
 class PythonREPLTool(BaseTool):
     pass
