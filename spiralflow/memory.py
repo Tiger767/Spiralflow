@@ -7,49 +7,31 @@ import tiktoken
 from openai.embeddings_utils import get_embedding
 
 
-def combine_on_overlap(str1: str, str2: str, threshold: float) -> Optional[str]:
+def get_percent_similar(str1: str, str2: str) -> float:
     """
-    Combines two strings if they overlap by a certain threshold.
+    Calculates the percentage of similarity between two strings using levenshtein string comparison.
 
-    :param str1: First string to combine.
-    :param str2: Second string to combine.
-    :param threshold: Threshold for ratio of overlap to combine results from multiple queries.
-    :return: Combined string if they overlap by a certain threshold, otherwise None.
+    :param str1: First string.
+    :param str2: Second string.
+    :return: Percentage of similarity between two strings represented by a float.
     """
-    if str1 in str2:
-        return str2
-    if str2 in str1:
-        return str1
+    # initialize levenshtein distance matrix
+    matrix = np.zeros((len(str1) +1, len(str2)+1))
+    for i in range(len(str1)+1):
+        matrix[i][0] = i
+    for i in range(len(str2)+1):
+        matrix[0][i] = i
+    # calculate levenshtein distance
+    for i in range(1, len(str1)+1):
+        for j in range(1, len(str2)+1):
+            matrix[i][j] = min(matrix[i-1][j], matrix[i][j-1], matrix[i-1][j-1])
+            if str1[i-1] != str2[j-1]:
+                matrix[i][j] = matrix[i][j]+1
 
-    max_overlap = min(len(str1), len(str2))
-    best_overlap = 0
-    best_overlap_index = -1
-    overlap_type = None
-
-    # Check for overlaps at the end of str1 and the beginning of str2
-    for i in range(1, max_overlap + 1):
-        if str1[-i:] == str2[:i] and i / len(str2) > threshold:
-            if i > best_overlap:
-                best_overlap = i
-                best_overlap_index = i
-                overlap_type = "end_start"
-
-    # Check for overlaps at the beginning of str1 and the end of str2
-    for i in range(1, max_overlap + 1):
-        if str1[:i] == str2[-i:] and i / len(str1) > threshold:
-            if i > best_overlap:
-                best_overlap = i
-                best_overlap_index = i
-                overlap_type = "start_end"
-
-    if best_overlap_index != -1:
-        if overlap_type == "end_start":
-            return str1 + str2[best_overlap_index:]
-        elif overlap_type == "start_end":
-            return str2 + str1[best_overlap_index:]
-    else:
-        return None
-
+    # The distance is the last item in the matrix. Use this to calculate a percentage match
+    distance = matrix[len(str1)][len(str2)]
+    bigger = max(len(str1), len(str2))
+    return (bigger - distance) / bigger
 
 class Memory:
     def __init__(
@@ -155,7 +137,9 @@ class Memory:
 
         :param query: Query to use to get memory.
         :param k: Max number of results to return.
-        :param combine_threshold: Threshold for ratio of overlap to combine results from multiple queries.
+        :param combine_threshold: A ratio representing how similar two memories can be before combining them.
+                                  Two memories must be at least combine_threshold similar to be combined.
+                                  In the case of combination, the memory most closely matching the query is returned.
                                   If None, no combining is done.
         :return: Memory obtained from external memories.
         """
@@ -180,32 +164,34 @@ class Memory:
         # get the memory values at the found indexes
         memories = []
 
-        for score, i in zip(scores[0], similar_indexes[0]):
+        for score, memA in zip(scores[0], similar_indexes[0]):
             memory = {
-                "text": self.data.iloc[i, 0],
-                "metadata": self.data.iloc[i, 1],
+                "text": self.data.iloc[memA, 0],
+                "metadata": self.data.iloc[memA, 1],
                 "score": score,
             }
             memories.append(memory)
-
+        
         if combine_threshold is not None and len(memories) > 1:
-            # Need to improve algorithm as may miss some overlaps
             combined_memories = []
-            for i in range(len(memories)):
-                for j in range(len(combined_memories)):
-                    combined_doc = combine_on_overlap(
-                        combined_memories[j]["text"],
-                        memories[i]["text"],
-                        combine_threshold,
-                    )
-                    if combined_doc is not None:
-                        combined_memories[j]["text"] = combined_doc
-                        combined_memories[j]["score"] = min(
-                            combined_memories[j]["score"], memories[i]["score"]
-                        )
-                        break
-                else:
-                    combined_memories.append(memories[i])
+            for memA in memories:
+                # create a group of memories that are similar enough to memA to be combined
+                combine_group = [memA]
+                for memB in memories:
+                    if memA != memB:
+                        # get the percentage similarity between memory a and memory b
+                        a_to_b_similarity = get_percent_similar(memA["text"], memB["text"])
+                        # if this is greater than the threshold add memB to the combine group
+                        if a_to_b_similarity >= combine_threshold:
+                            combine_group.append(memB)
+                # get the memory with the highest similarity to the query in the group
+                most_similar = (0, None)
+                for mem in combine_group:
+                    mem_sim = get_percent_similar(mem["text"], query)
+                    if mem_sim > most_similar[0]:
+                        most_similar = (mem_sim, mem)
+                # do not add a duplicate to the combined memories
+                if most_similar[1] not in combined_memories:
+                    combined_memories.append(most_similar[1])
             memories = combined_memories
-
         return memories
