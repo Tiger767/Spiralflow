@@ -10,16 +10,11 @@ from openai.embeddings_utils import get_embedding
 def combine_on_overlap(str1: str, str2: str, threshold: float) -> Optional[str]:
     """
     Combines two strings if they overlap by a certain threshold.
-
     :param str1: First string to combine.
     :param str2: Second string to combine.
     :param threshold: Threshold for ratio of overlap to combine results from multiple queries.
     :return: Combined string if they overlap by a certain threshold, otherwise None.
     """
-    if str1 in str2:
-        return str2
-    if str2 in str1:
-        return str1
 
     max_overlap = min(len(str1), len(str2))
     best_overlap = 0
@@ -60,7 +55,6 @@ class Memory:
     ) -> None:
         """
         Initializes the memory.
-
         :param filepath: Path to a pickle file to load and save the memory to.
                          If None, the memory is created with text and metadata fields.
         :param embedding_model: Model to use for the embedding.
@@ -85,7 +79,6 @@ class Memory:
     def save(self, filepath: Optional[str] = None) -> None:
         """
         Saves the memory to a file.
-
         :param filepath: Path to the pickle file to save the memory to. If None, the filepath passed in the constructor is used.
         """
         if filepath is None:
@@ -116,7 +109,6 @@ class Memory:
     ) -> None:
         """
         Adds data to memory.
-
         :param data: Dict of data with a text and metadata field to add to memory.
         :param save: Whether to save the memory to a file.
         :param filepath: Path to the file (csv or parquet) to save the memory to.
@@ -152,7 +144,6 @@ class Memory:
     ) -> list[Dict[str, str]]:
         """
         Queries the memory with the given query.
-
         :param query: Query to use to get memory.
         :param k: Max number of results to return.
         :param combine_threshold: Threshold for ratio of overlap to combine results from multiple queries.
