@@ -3,7 +3,6 @@ import pandas as pd
 import faiss
 from typing import Dict, Optional
 import pickle
-import tiktoken
 from openai.embeddings_utils import get_embedding
 
 
@@ -51,18 +50,14 @@ class Memory:
         self,
         filepath: Optional[str] = None,
         embedding_model: str = "text-embedding-ada-002",
-        max_tokens: int = 500,
     ) -> None:
         """
         Initializes the memory.
         :param filepath: Path to a pickle file to load and save the memory to.
                          If None, the memory is created with text and metadata fields.
         :param embedding_model: Model to use for the embedding.
-        :param max_tokens: Maximum number of tokens to use for the embedding.
         """
         self.embedding_model = embedding_model
-        self.max_tokens = max_tokens
-        self.encoding = tiktoken.encoding_for_model(self.embedding_model)
 
         if filepath is None:
             self.data = pd.DataFrame(columns=["text", "metadata"])
@@ -84,10 +79,8 @@ class Memory:
         if filepath is None:
             filepath = self.filepath
 
-        self.encoding, encoding = None, self.encoding
         with open(filepath + ".pkl", "wb") as f:
             pickle.dump(self, f)
-        self.encoding = encoding
 
     def load(self, filepath: Optional[str] = None) -> None:
         """
@@ -101,8 +94,6 @@ class Memory:
             self.data = loaded_memory.data
             self.index = loaded_memory.index
             self.embedding_model = loaded_memory.embedding_model
-            self.max_tokens = loaded_memory.max_tokens
-            self.encoding = tiktoken.encoding_for_model(self.embedding_model)
 
     def add(
         self, data: Dict[str, str], save: bool = False, filepath: Optional[str] = None
@@ -117,11 +108,6 @@ class Memory:
 
         if "text" not in data:
             raise ValueError("Data must have a 'text' field.")
-
-        if len(self.encoding.encode(data["text"])) > self.max_tokens:
-            raise ValueError(
-                "Text must be less than {} tokens.".format(self.max_tokens)
-            )
 
         # get embedding of text
         embedding = np.array(
@@ -153,11 +139,6 @@ class Memory:
         if self.data.empty:
             raise ValueError(
                 "No memory to query. Add data to memory by calling Memory.add() before querying."
-            )
-
-        if len(self.encoding.encode(query)) > self.max_tokens:
-            raise ValueError(
-                "Text must be less than {} tokens.".format(self.max_tokens)
             )
 
         # get embedding of query

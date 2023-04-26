@@ -553,6 +553,7 @@ class NoHistory(ChatFlowWrapper):
         :param input_chat_history: Optional input chat history. Will not be used, but internal chat flow may use default.
         :return: Tuple of dictionary of output variables and a tuple of empty input and internal chat histories.
         """
+        original_input_chat_history = input_chat_history
         if not self._allow_input_history:
             input_chat_history = None
         if self._disallow_default_history:
@@ -564,6 +565,8 @@ class NoHistory(ChatFlowWrapper):
 
         if not self._allow_rtn_internal_history:
             histories = (histories[0], [])
+        if not self._allow_input_history:
+            histories = ([original_input_chat_history], histories[1])
         if not self._allow_rtn_input_history:
             histories = ([], histories[1])
 
@@ -1281,6 +1284,17 @@ class ChatSpiral(ChatFlowWrapper):
         input_chat_history: Optional[ChatHistory] = None,
         max_iterations: Optional[int] = None,
     ) -> Tuple[Dict[str, str], ChatHistory]:
+        """
+        Runs the chat flow through an LLM continuously.
+
+        :param input_variables: Dictionary of input variables.
+        :param reset_history: Whether to reset the chat history after each chat flow completion.
+        :param chat_llm: Optional chat language model to use for the chat flow.
+        :param input_chat_history: Optional input chat history.
+        :param max_iterations: Maximum number of iterations to run through the chat flow.
+
+        :return: Tuple of dictionary of output variables and chat history
+        """
         variables = dict(input_variables)
         chat_history = input_chat_history
         try:
@@ -1311,6 +1325,18 @@ class ChatSpiral(ChatFlowWrapper):
         max_iterations: Optional[int] = None,
         return_all: bool = True,
     ) -> Tuple[Dict[str, str], ChatHistory]:
+        """
+        Runs the chat flow through an LLM continuously.
+
+        :param input_variables: Dictionary of input variables.
+        :param reset_history: Whether to reset the chat history after each chat flow completion.
+        :param chat_llm: Optional chat language model to use for the chat flow.
+        :param input_chat_history: Optional input chat history.
+        :param max_iterations: Maximum number of iterations to run through the chat flow.
+        :param return_all: Whether to return all output variables.
+
+        :return: Tuple of dictionary of output variables and chat history
+        """
         variables, history = self.spiral(
             input_variables,
             reset_history=reset_history,

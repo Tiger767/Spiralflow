@@ -73,9 +73,25 @@ class FileTool(BaseTool):
         :param path: The path to the file.
         """
         self.path = os.path.abspath(path)
-        self.commands = ["read", "r", "write", "w", "append", "a", "cd", "chdir", "change_directory", "ls", "list", "mkdir", "make_directory"]
+        self.commands = [
+            "read",
+            "r",
+            "write",
+            "w",
+            "append",
+            "a",
+            "cd",
+            "chdir",
+            "change_directory",
+            "ls",
+            "list",
+            "mkdir",
+            "make_directory",
+        ]
 
-    def check_required_inputs(self, required_inputs: list[str], inputs: list[str]) -> str:
+    def check_required_inputs(
+        self, required_inputs: list[str], inputs: list[str]
+    ) -> str:
         """
         Checks if the required inputs are in the inputs list. If not, raises a ValueError.
 
@@ -90,7 +106,7 @@ class FileTool(BaseTool):
             err = "Missing input(s): {"
             for i in range(len(missing_inputs)):
                 missed_input = missing_inputs[i]
-                err += missed_input 
+                err += missed_input
                 if i != len(missing_inputs) - 1:
                     err += ", "
                 else:
@@ -113,17 +129,18 @@ class FileTool(BaseTool):
                 matrix[0][i] = i
             for i in range(1, len(incorrect_command) + 1):
                 for j in range(1, len(command) + 1):
-                    matrix[i][j] = min(matrix[i - 1][j - 1], matrix[i - 1][j], matrix[i][j - 1]) 
+                    matrix[i][j] = min(
+                        matrix[i - 1][j - 1], matrix[i - 1][j], matrix[i][j - 1]
+                    )
                     if incorrect_command[i - 1] != command[j - 1]:
                         matrix[i][j] += 1
             distances.append(matrix[len(incorrect_command)][len(command)])
         return self.commands[distances.index(min(distances))]
-        
 
     def use(self, inputs: Dict[str, str]) -> Union[str, list[str]]:
         """
         :param inputs: The inputs to the tool. Must contain a 'command' key.
-                        Depending on the 'command' value, other keys will be required as follows: 
+                        Depending on the 'command' value, other keys will be required as follows:
                         [read, r]: file
                         [write, w]: file, data
                         [append, a]: file, data
@@ -140,14 +157,18 @@ class FileTool(BaseTool):
             with open(file_path, "r") as f:
                 return f.read()
         elif command in ["write", "w"]:
-            self.check_required_inputs(required_inputs=["file", "data"], inputs=inputs.keys())
+            self.check_required_inputs(
+                required_inputs=["file", "data"], inputs=inputs.keys()
+            )
 
             file_path = os.path.join(self.path, inputs["file"])
-            with open(file_path,  "w") as f:
+            with open(file_path, "w") as f:
                 f.write(inputs["data"])
                 return "WROTE: " + inputs["data"] + "\nTO: " + file_path
         elif command in ["append", "a"]:
-            self.check_required_inputs(required_inputs=["file", "data"], inputs=inputs.keys())
+            self.check_required_inputs(
+                required_inputs=["file", "data"], inputs=inputs.keys()
+            )
 
             file_path = os.path.join(self.path, inputs["file"])
             with open(file_path, "a") as f:
@@ -161,7 +182,9 @@ class FileTool(BaseTool):
         elif command in ["ls", "list"]:
             return os.listdir(self.path)
         elif command in ["mkdir", "make_directory"]:
-            self.check_required_inputs(required_inputs=["directory"], inputs=inputs.keys())
+            self.check_required_inputs(
+                required_inputs=["directory"], inputs=inputs.keys()
+            )
 
             directory_path = os.path.join(self.path, inputs["directory"])
             if os.path.isdir(directory_path):
@@ -169,7 +192,6 @@ class FileTool(BaseTool):
             os.mkdir(directory_path)
             return "CREATED DIRECTORY: " + directory_path
         else:
-            raise ValueError(f"Invalid command: {command} \n\tDid you mean: {self.get_closest_command(command)}?")
-
-class PythonREPLTool(BaseTool):
-    pass
+            raise ValueError(
+                f"Invalid command: {command} \n\tDid you mean: {self.get_closest_command(command)}?"
+            )
