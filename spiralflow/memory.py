@@ -147,8 +147,6 @@ class Memory:
         # search for the indexes with similar embeddings
         scores, similar_indexes = self.index.search(embeded_query, k=k)
 
-        print(scores)
-
         # get the memory values at the found indexes
         memories = []
 
