@@ -240,6 +240,100 @@ Generates a response using the GPT model based on the input messages.
 
 Response from the chat completion with content, role, and metadata.
 
+<a id="chunking"></a>
+
+# chunking
+
+<a id="chunking.Chunker"></a>
+
+## Chunker Objects
+
+```python
+class Chunker()
+```
+
+<a id="chunking.Chunker.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(encoder, chunk_size: int, overlap_factor: float) -> None
+```
+
+**Arguments**:
+
+- `encoder`: The text encoder object.
+- `chunk_size`: The desired chunk size in token units.
+- `overlap_factor`: The factor to calculate the overlap between chunks.
+
+<a id="chunking.Chunker.chunk"></a>
+
+#### chunk
+
+```python
+def chunk(text: str) -> List[str]
+```
+
+Chunks text into chunks of size chunk_size (token units) with overlap.
+
+**Arguments**:
+
+- `text`: The input text to be chunked.
+
+**Returns**:
+
+A list of chunked text.
+
+<a id="chunking.SmartChunker"></a>
+
+## SmartChunker Objects
+
+```python
+class SmartChunker(Chunker)
+```
+
+<a id="chunking.SmartChunker.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    encoder,
+    chunk_size: int,
+    overlap_factor: float,
+    delimiters_tolerances_overlap: Union[None, List[Tuple[str, float,
+                                                          bool]]] = None
+) -> None
+```
+
+**Arguments**:
+
+- `encoder`: The text encoder object.
+- `chunk_size`: The desired chunk size in token units.
+- `overlap_factor`: The factor to calculate the overlap between chunks.
+- `delimiters_tolerances_overlap`: A list of tuples with delimiter,
+tolerance, and overlap values for smart chunking. Defaults to None.
+
+<a id="chunking.SmartChunker.chunk"></a>
+
+#### chunk
+
+```python
+def chunk(text: str) -> List[str]
+```
+
+Chunks text respecting delimiters, tolerances, and overlap into chunk_size
+
+(estimated token units) with overlap.
+
+**Arguments**:
+
+- `text`: The input text to be chunked.
+
+**Returns**:
+
+A list of chunked text.
+
 <a id="flow"></a>
 
 # flow
@@ -1235,6 +1329,62 @@ Runs the chat flow through an LLM.
 
 Tuple of dictionary of output variables and two tuple of list of chat histories.
 
+<a id="flow.ChatSpiral.spiral"></a>
+
+#### spiral
+
+```python
+def spiral(
+    input_variables: dict,
+    reset_history: bool = False,
+    chat_llm: Optional[ChatLLM] = None,
+    input_chat_history: Optional[ChatHistory] = None,
+    max_iterations: Optional[int] = None
+) -> Tuple[Dict[str, str], ChatHistory]
+```
+
+Runs the chat flow through an LLM continuously.
+
+**Arguments**:
+
+- `input_variables`: Dictionary of input variables.
+- `reset_history`: Whether to reset the chat history after each chat flow completion.
+- `chat_llm`: Optional chat language model to use for the chat flow.
+- `input_chat_history`: Optional input chat history.
+- `max_iterations`: Maximum number of iterations to run through the chat flow.
+
+**Returns**:
+
+Tuple of dictionary of output variables and chat history
+
+<a id="flow.ChatSpiral.__call__"></a>
+
+#### \_\_call\_\_
+
+```python
+def __call__(input_variables: dict,
+             reset_history: bool = False,
+             chat_llm: Optional[ChatLLM] = None,
+             input_chat_history: Optional[ChatHistory] = None,
+             max_iterations: Optional[int] = None,
+             return_all: bool = True) -> Tuple[Dict[str, str], ChatHistory]
+```
+
+Runs the chat flow through an LLM continuously.
+
+**Arguments**:
+
+- `input_variables`: Dictionary of input variables.
+- `reset_history`: Whether to reset the chat history after each chat flow completion.
+- `chat_llm`: Optional chat language model to use for the chat flow.
+- `input_chat_history`: Optional input chat history.
+- `max_iterations`: Maximum number of iterations to run through the chat flow.
+- `return_all`: Whether to return all output variables.
+
+**Returns**:
+
+Tuple of dictionary of output variables and chat history
+
 <a id="flow.ChatSpiral.compress_histories"></a>
 
 #### compress\_histories
@@ -1254,6 +1404,210 @@ Combines a tuple of list of chat histories into a tuple of two chat histories.
 **Returns**:
 
 Tuple of combined input and internal chat histories.
+
+<a id="loading"></a>
+
+# loading
+
+<a id="loading.Loader"></a>
+
+## Loader Objects
+
+```python
+class Loader(ABC)
+```
+
+<a id="loading.Loader.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(chunker=None)
+```
+
+**Arguments**:
+
+- `chunker`: The chunker to split text into chunks (default: None).
+
+<a id="loading.Loader.handle_chunking"></a>
+
+#### handle\_chunking
+
+```python
+def handle_chunking(
+        loaded_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]
+```
+
+**Arguments**:
+
+- `loaded_items`: List of dictionaries containing the path to the file and its content with other possible metadata.
+
+<a id="loading.TextLoader"></a>
+
+## TextLoader Objects
+
+```python
+class TextLoader(Loader)
+```
+
+<a id="loading.TextLoader.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(encoding: str = "utf-8", chunker=None)
+```
+
+**Arguments**:
+
+- `encoding`: The encoding of the text file (default: 'utf-8').
+- `chunker`: The chunker to split text into chunks (default: None).
+
+<a id="loading.TextLoader.load"></a>
+
+#### load
+
+```python
+def load(filepath: str) -> List[Dict[str, Any]]
+```
+
+**Arguments**:
+
+- `filepath`: Path to the text file to be loaded.
+
+**Returns**:
+
+Dictionary containing the path to the file and its content.
+
+<a id="loading.PDFLoader"></a>
+
+## PDFLoader Objects
+
+```python
+class PDFLoader(TextLoader)
+```
+
+PDFLoader that uses fitz (PyMuPDF) to load PDF files.
+
+<a id="loading.PDFLoader.load"></a>
+
+#### load
+
+```python
+def load(filepath: str) -> List[Dict[str, Any]]
+```
+
+**Arguments**:
+
+- `filepath`: Path to the PDF file to be loaded.
+
+**Returns**:
+
+List of dictionaries containing the path to the file, its content, and the page number.
+
+<a id="loading.HTMLLoader"></a>
+
+## HTMLLoader Objects
+
+```python
+class HTMLLoader(Loader)
+```
+
+HTMLLoader that uses beautiful soup to load HTML files.
+
+<a id="loading.HTMLLoader.load"></a>
+
+#### load
+
+```python
+def load(filepath: str) -> List[Dict[str, Any]]
+```
+
+**Arguments**:
+
+- `filepath`: Path to the HTML file to be loaded.
+
+**Returns**:
+
+Dictionary containing the path to the file, its content, and the soup title.
+
+<a id="loading.DirectoryLoader"></a>
+
+## DirectoryLoader Objects
+
+```python
+class DirectoryLoader(Loader)
+```
+
+<a id="loading.DirectoryLoader.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(path: str,
+             loader: Loader,
+             should_recurse: bool = True,
+             filter_regex: Optional[str] = None)
+```
+
+**Arguments**:
+
+- `path`: Path to the directory to load files from.
+- `loader`: Class that actually loads the specific file.
+- `should_recurse`: Whether to recursively load files from subdirectories (default: True).
+- `filter_regex`: Regular expression to filter files by (default: None).
+
+<a id="loading.DirectoryLoader.load"></a>
+
+#### load
+
+```python
+def load(current_path: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+**Arguments**:
+
+- `current_path`: Current path while recursively loading directories (default: None).
+
+**Returns**:
+
+List of dictionaries containing the path to the file, its content, and possibly other metadata.
+
+<a id="loading.DirectoryMultiLoader"></a>
+
+## DirectoryMultiLoader Objects
+
+```python
+class DirectoryMultiLoader(Loader)
+```
+
+<a id="loading.DirectoryMultiLoader.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(path: str,
+             loader: Dict[str, Loader],
+             should_recurse: bool = True)
+```
+
+**Arguments**:
+
+- `path`: Path to the directory to load files from.
+- `loader`: Dictionary of loader instances, with keys being filter regexes.
+- `should_recurse`: Whether to recursively load files from subdirectories (default: True).
+
+<a id="loading.DirectoryMultiLoader.load"></a>
+
+#### load
+
+```python
+def load(current_path: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+**Arguments**:
+
+- `current_path`: Current path while recursively loading directories (default: None).
 
 <a id="memory"></a>
 
@@ -1294,8 +1648,7 @@ class Memory()
 
 ```python
 def __init__(filepath: Optional[str] = None,
-             embedding_model: str = "text-embedding-ada-002",
-             max_tokens: int = 500) -> None
+             embedding_model: str = "text-embedding-ada-002") -> None
 ```
 
 Initializes the memory.
@@ -1305,7 +1658,6 @@ Initializes the memory.
 - `filepath`: Path to a pickle file to load and save the memory to.
 If None, the memory is created with text and metadata fields.
 - `embedding_model`: Model to use for the embedding.
-- `max_tokens`: Maximum number of tokens to use for the embedding.
 
 <a id="memory.Memory.save"></a>
 
@@ -1912,6 +2264,85 @@ def use(inputs: Dict[str, str]) -> Union[str, list[str]]
 **Returns**:
 
 The output of the tool: Google search snippets.
+
+<a id="tools.FileTool"></a>
+
+## FileTool Objects
+
+```python
+class FileTool(BaseTool)
+```
+
+<a id="tools.FileTool.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(path: str) -> None
+```
+
+Initialize the FileTool.
+
+**Arguments**:
+
+- `path`: The path to the file.
+
+<a id="tools.FileTool.check_required_inputs"></a>
+
+#### check\_required\_inputs
+
+```python
+def check_required_inputs(required_inputs: list[str],
+                          inputs: list[str]) -> str
+```
+
+Checks if the required inputs are in the inputs list. If not, raises a ValueError.
+
+**Arguments**:
+
+- `required_inputs`: The required inputs.
+- `inputs`: The inputs to check.
+
+<a id="tools.FileTool.get_closest_command"></a>
+
+#### get\_closest\_command
+
+```python
+def get_closest_command(incorrect_command: str)
+```
+
+Returns the closest command to an incorrectly inputted command
+
+**Arguments**:
+
+- `incorrect_command`: The command that was inputted incorrectly.
+
+**Returns**:
+
+The closest possible command.
+
+<a id="tools.FileTool.use"></a>
+
+#### use
+
+```python
+def use(inputs: Dict[str, str]) -> Union[str, list[str]]
+```
+
+**Arguments**:
+
+- `inputs`: The inputs to the tool. Must contain a 'command' key.
+Depending on the 'command' value, other keys will be required as follows:
+[read, r]: file
+[write, w]: file, data
+[append, a]: file, data
+[cd, chdir, change directory]: path
+[ls, list]: path
+[mkdir, make directory]: path
+
+**Returns**:
+
+The output of the tool: The contents of the file.
 
 <a id="__init__"></a>
 

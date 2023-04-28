@@ -1,7 +1,7 @@
-# spiralflow (Work-In-Progress)
+# spiralflow
 A framework for creating guided spirals for Large Language Models
 
-This project is designed to help with creating, formatting, and extracting data from text-based conversations with OpenAI language models to allow for more complicated ideas such as Flows and Spirals. It includes the following key components:
+This project is designed to help with creating, formatting, and extracting data from text-based conversations with OpenAI language models to allow for more complicated ideas such as Flows and Spirals. It includes the following components:
 
 *   `Message`: A base class representing a message with content, role, and variables.
 *   `InputMessage`: A class to create input messages with pre-defined content formats.
@@ -21,6 +21,14 @@ This project is designed to help with creating, formatting, and extracting data 
 *   `SequentialChatFlows`: A class to represent multiple conversation flows, flowing sequentially.
 *   `ConcurrentChatFlows`: A class to represent multiple conversation flows, flowing separately and concurrently.
 *   `ChatSpiral`: A class to represent a spiral of conversation flows.
+*   `TextLoader`: A class to load text files, optionally splitting them into chunks using a specified chunker.
+*   `PDFLoader`: A class to load PDF files, utilizing the fitz (PyMuPDF) library to extract text content.
+*   `HTMLLoader`: A class to load HTML files, extracting text content using the BeautifulSoup library.
+*   `DirectoryLoader`: A class to load files from a directory, using a specified loader instance for each file, with options for recursion and filtering by file names.
+*   `DirectoryMultiLoader`: A class to load files from a directory, using different loader instances based on file names, with options for recursion.
+*   `Chunker`: A class to split text into chunks of a specified size with overlap.
+*   `SmartChunker`: A class that splits text into chunks while respecting delimiters, tolerances, and overlap.
+
 
 Example Projects
 ------------
@@ -32,9 +40,8 @@ Installation
 To use this project, you will need to install the required dependencies:
 
 1.  Install Python 3.9 or higher.
-2.  Install the `openai`, `tiktoken`, `pandas`, packages: `pip install openai tiktoken pandas`.
-3.  Install faiss package: `conda install -c conda-forge pytorch faiss-cpu`
-3.  Install the this package: `git clone https://github.com/Tiger767/spiral.git` and then `pip install .` inside the repo.
+2.  Install faiss package: `conda install -c conda-forge pytorch faiss-cpu`
+3.  Install the this package: `git clone https://github.com/Tiger767/Spiralflow.git` and then `pip install .` inside the repo.
 4.  Make sure OPENAI_API_KEY is set as an environment variable with your OpenAI API key.
 
 Usage
