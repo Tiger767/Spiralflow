@@ -55,7 +55,7 @@ class TextLoader(Loader):
         return self.handle_chunking([{"content": content, "path": filepath}])
 
 
-class PDFLoader(TextLoader):
+class PDFLoader(Loader):
     """
     PDFLoader that uses fitz (PyMuPDF) to load PDF files.
     """
@@ -71,7 +71,7 @@ class PDFLoader(TextLoader):
         for page in doc:
             pages.append(
                 {
-                    "content": page.get_text().encode(self.encoding),
+                    "content": page.get_text(),
                     "path": filepath,
                     "page_number": page.number,
                 }
@@ -90,7 +90,7 @@ class HTMLLoader(Loader):
         :param filepath: Path to the HTML file to be loaded.
         :return: Dictionary containing the path to the file, its content, and the soup title.
         """
-        with open(filepath, "r", encoding=self.encoding) as file:
+        with open(filepath, "r", encoding="utf-8") as file:
             content = file.read()
 
         soup = BeautifulSoup(content, "html.parser")

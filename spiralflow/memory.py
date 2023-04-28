@@ -69,7 +69,7 @@ class Memory:
     def _create_index(self, embeddings: np.ndarray) -> None:
         _, d = embeddings.shape
         self.index = faiss.IndexFlatL2(d)
-        self.index.add(embeddings)
+        self.index.add(embeddings.astype(np.float32))
 
     def save(self, filepath: Optional[str] = None) -> None:
         """
@@ -142,7 +142,7 @@ class Memory:
             )
 
         # get embedding of query
-        embeded_query = np.array([get_embedding(query, engine=self.embedding_model)])
+        embeded_query = np.array([get_embedding(query, engine=self.embedding_model)], dtype=np.float32)
 
         # search for the indexes with similar embeddings
         scores, similar_indexes = self.index.search(embeded_query, k=k)
