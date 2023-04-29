@@ -95,15 +95,13 @@ class SmartChunker(Chunker):
                     best_chunk_end_ndx = delimiter_ndx + search_start
                     break
 
-            final_chunks.append(self.encoder.decode(tokens[start_ndx:best_chunk_end_ndx]))
+            final_chunks.append(
+                self.encoder.decode(tokens[start_ndx:best_chunk_end_ndx])
+            )
 
             start_ndx = best_chunk_end_ndx
             if overlap:
-                overlap_offset = int(self.overlap_factor * chunk_size)
-                ndx = text[start_ndx - overlap_offset : start_ndx].find(" ")
-                if ndx != -1:
-                    start_ndx += ndx - overlap_offset
-        # if start_ndx < len(text):
+                start_ndx -= int(self.overlap_factor * chunk_size)
         final_chunks.append(self.encoder.decode(tokens[start_ndx:]))
 
         return final_chunks
