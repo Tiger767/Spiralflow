@@ -67,9 +67,10 @@ class Memory:
             self.load()
 
     def _create_index(self, embeddings: np.ndarray) -> None:
+        embeddings = embeddings.astype(np.float32)
         _, d = embeddings.shape
-        self.index = faiss.IndexFlatL2(d)
-        self.index.add(embeddings.astype(np.float32))
+        self.index = faiss.IndexFlatIP(d)
+        self.index.add(embeddings / np.linalg.norm(embeddings, axis=-1))
 
     def save(self, filepath: Optional[str] = None) -> None:
         """
@@ -84,6 +85,7 @@ class Memory:
 
     def load(self, filepath: Optional[str] = None) -> None:
         """
+        Loads the memory from a pickle file.
         :param filepath: Path to a pickle file to load the memory from. If None, the filepath passed in the constructor is used.
         """
         if filepath is None:
@@ -109,7 +111,6 @@ class Memory:
         if "text" not in data:
             raise ValueError("Data must have a 'text' field.")
 
-        # get embedding of text
         embedding = np.array(
             [get_embedding(data["text"], engine=self.embedding_model)], dtype=np.float32
         )
@@ -120,7 +121,7 @@ class Memory:
         if self.index is None:
             self._create_index(embedding)
         else:
-            self.index.add(embedding)
+            self.index.add(embedding / np.linalg.norm(embedding, axis=-1))
 
         if save:
             self.save(filepath)
@@ -134,7 +135,7 @@ class Memory:
         :param k: Max number of results to return.
         :param combine_threshold: Threshold for ratio of overlap to combine results from multiple queries.
                                   If None, no combining is done.
-        :return: Memory obtained from external memories.
+        :return: Memory obtained from external memories with metadata and scores (cosine similarity).
         """
         if self.data.empty:
             raise ValueError(
@@ -142,10 +143,14 @@ class Memory:
             )
 
         # get embedding of query
-        embeded_query = np.array([get_embedding(query, engine=self.embedding_model)], dtype=np.float32)
+        embeded_query = np.array(
+            [get_embedding(query, engine=self.embedding_model)], dtype=np.float32
+        )
 
         # search for the indexes with similar embeddings
-        scores, similar_indexes = self.index.search(embeded_query, k=k)
+        scores, similar_indexes = self.index.search(
+            embeded_query / np.linalg.norm(embeded_query, axis=-1), k=k
+        )
 
         # get the memory values at the found indexes
         memories = []
