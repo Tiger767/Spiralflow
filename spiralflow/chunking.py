@@ -37,6 +37,7 @@ class SmartChunker(Chunker):
         chunk_size: int,
         overlap_factor: float,
         delimiters_tolerances_overlap: Optional[List[Tuple[str, float, bool]]] = None,
+        prefer_large_chunks: bool = True,
     ) -> None:
         """
         :param encoder: The text encoder object.
@@ -44,155 +45,63 @@ class SmartChunker(Chunker):
         :param overlap_factor: The factor to calculate the overlap between chunks.
         :param delimiters_tolerances_overlap: A list of tuples with delimiter,
             tolerance, and overlap values for smart chunking. Defaults to None.
+        :param prefer_large_chunks: If True, prefer chunks splitting at last occurance of a delimiter.
         """
         super().__init__(encoder, chunk_size, overlap_factor)
-
         self._delimiters_tolerances_overlap = (
             [
-                ("\n\n\n", 0.3, False),
-                ("\n\n", 0.15, False),
-                ("\n", 0.05, True),
+                ("\n\n\n", 0.4, False),
+                ("\n\n", 0.2, False),
+                ("\n", 0.1, True),
                 (" ", 0.5, True),
                 ("", 0.01, True),
             ]
             if delimiters_tolerances_overlap is None
             else delimiters_tolerances_overlap
         )
+        self.prefer_large_chunks = prefer_large_chunks
+
+        # should check that int(self.overlap_factor * chunk_size) is always less than chunk_size * smallest possible tolerance
 
     def chunk(self, text: str) -> List[str]:
         """
-        Chunks text respecting delimiters, tolerances, and overlap into chunk_size
-        (estimated token units) with overlap.
+        Chunks text respecting delimiters, tolerances, and overlap into chunk_size with overlap.
 
         :param text: The input text to be chunked.
         :returns: A list of chunked text.
         """
-        token_chunk_size = self.chunk_size
-        chunk_size = self.chunk_size * 4  # estimate token size
+        chunk_size = self.chunk_size
 
         final_chunks = []
 
+        tokens = self.encoder.encode(text)
+
         start_ndx = 0
-        while start_ndx + chunk_size < len(text):
+        while start_ndx + chunk_size < len(tokens):
             best_chunk_end_ndx = start_ndx
 
             for delimiter, tolerance, overlap in self._delimiters_tolerances_overlap:
                 search_start = start_ndx + int(chunk_size * (1 - tolerance))
                 search_end = start_ndx + chunk_size
-                delimiter_ndx = text[search_start:search_end].rfind(delimiter)
+
+                subtext = self.encoder.decode(tokens[search_start:search_end])
+                if self.prefer_large_chunks:
+                    delimiter_ndx = subtext.rfind(delimiter)
+                else:
+                    delimiter_ndx = subtext.find(delimiter)
 
                 if delimiter_ndx != -1:
+                    delimiter_ndx = len(self.encoder.encode(subtext[:delimiter_ndx]))
                     best_chunk_end_ndx = delimiter_ndx + search_start
                     break
 
-            chunk = text[start_ndx:best_chunk_end_ndx]
-
-            # Make sure chunk is actually smaller than chunk_size after the fact
-            # may not lead to best results if truncation is needed
-            encoded_chunk = self.encoder.encode(chunk)
-            if len(encoded_chunk) > token_chunk_size:
-                print("chunk too large, truncating")
-                encoded_chunk = encoded_chunk[:token_chunk_size]
-                trunc_chunk = self.encoder.decode(encoded_chunk)
-                best_chunk_end_ndx -= len(chunk) - len(trunc_chunk)
-                chunk = trunc_chunk
-
-            final_chunks.append(chunk)
+            final_chunks.append(
+                self.encoder.decode(tokens[start_ndx:best_chunk_end_ndx])
+            )
 
             start_ndx = best_chunk_end_ndx
             if overlap:
-                overlap_offset = int(self.overlap_factor * chunk_size)
-                ndx = text[start_ndx - overlap_offset : start_ndx].find(" ")
-                if ndx != -1:
-                    start_ndx += ndx - overlap_offset
-        # if start_ndx < len(text):
-        final_chunks.append(text[start_ndx:])
+                start_ndx -= int(self.overlap_factor * chunk_size)
+        final_chunks.append(self.encoder.decode(tokens[start_ndx:]))
 
-        return final_chunks
-
-
-class SmartRChunker(SmartChunker):
-    """
-    A chunker similar to SmartChunker, but does the chunking in reverse.
-    This is useful for wanting the splits to begin with the delimiters instead of ending.
-    """
-
-    def __init__(
-        self,
-        encoder,
-        chunk_size: int,
-        overlap_factor: float,
-        delimiters_tolerances_overlap: Optional[List[Tuple[str, float, bool]]
-        ] = None,
-    ) -> None:
-        """
-        :param encoder: The text encoder object.
-        :param chunk_size: The desired chunk size in token units.
-        :param overlap_factor: The factor to calculate the overlap between chunks.
-        :param delimiters_tolerances_overlap: A list of tuples with delimiter,
-            tolerance, and overlap values for smart chunking. Defaults to None.
-        """
-        super().__init__(
-            encoder,
-            chunk_size,
-            overlap_factor,
-            delimiters_tolerances_overlap=delimiters_tolerances_overlap,
-        )
-        self._delimiters_tolerances_overlap = [
-            (delimiter[::-1], tolerance, overlap)
-            for delimiter, tolerance, overlap in self._delimiters_tolerances_overlap
-        ]
-
-    def chunk(self, text: str) -> List[str]:
-        """
-        Chunks text respecting delimiters, tolerances, and overlap into chunk_size
-        (estimated token units) with overlap.
-
-        :param text: The input text to be chunked.
-        :returns: A list of chunked text.
-        """
-        reversed_text = text[::-1]
-
-        token_chunk_size = self.chunk_size
-        chunk_size = self.chunk_size * 4  # estimate token size
-
-        final_chunks = []
-
-        start_ndx = 0
-        while start_ndx + chunk_size < len(text):
-            best_chunk_end_ndx = start_ndx
-
-            for delimiter, tolerance, overlap in self._delimiters_tolerances_overlap:
-                search_start = start_ndx + int(chunk_size * (1 - tolerance))
-                search_end = start_ndx + chunk_size
-                delimiter_ndx = text[search_start:search_end].rfind(delimiter)
-
-                if delimiter_ndx != -1:
-                    best_chunk_end_ndx = delimiter_ndx + search_start
-                    break
-
-            chunk = text[start_ndx:best_chunk_end_ndx]
-
-            # Make sure chunk is actually smaller than chunk_size after the fact
-            # may not lead to best results if truncation is needed
-            encoded_chunk = self.encoder.encode(chunk[::-1])
-            if len(encoded_chunk) > token_chunk_size:
-                print("chunk too large, truncating")
-                encoded_chunk = encoded_chunk[:token_chunk_size]
-                trunc_chunk = self.encoder.decode(encoded_chunk)
-                best_chunk_end_ndx -= len(chunk) - len(trunc_chunk)
-                chunk = trunc_chunk[::-1]
-
-            final_chunks.append(chunk)
-
-            start_ndx = best_chunk_end_ndx
-            if overlap:
-                overlap_offset = int(self.overlap_factor * chunk_size)
-                ndx = text[start_ndx - overlap_offset : start_ndx].find(" ")
-                if ndx != -1:
-                    start_ndx += ndx - overlap_offset
-        # if start_ndx < len(text):
-        final_chunks.append(text[start_ndx:])
-
-        final_chunks = [chunk[::-1] for chunk in final_chunks]
         return final_chunks

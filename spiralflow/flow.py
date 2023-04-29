@@ -437,9 +437,6 @@ class FuncChatFlow(ChatFlow):
                 f"FuncChatFlow func must return a empty or single input chat history. Received {len(new_input_chat_histories)}"
             )
 
-        # if len(new_input_chat_histories) != len(internal_histories):
-        #    raise ValueError(f'FuncChatFlow func must return the same number of input and internal chat histories. Received {len(new_input_chat_histories)} and {len(internal_histories)}')
-
         return outputs, (new_input_chat_histories, internal_histories)
 
 
@@ -1344,9 +1341,6 @@ class ChatSpiral(ChatFlowWrapper):
             input_chat_history=input_chat_history,
             max_iterations=max_iterations,
         )
-
-        # histories = self.compress_histories(histories)
-        # history = ChatHistory(histories[0].messages + histories[1].messages)
 
         if not return_all:
             variables = {
