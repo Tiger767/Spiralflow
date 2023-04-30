@@ -1,33 +1,18 @@
+import re
 import pytest
+from typing import Dict, Any, Optional, Callable
+
 from spiralflow.message import (
     extract_fstring_variables,
     flatten_dict,
     ExtractionError,
     Role,
     Message,
-)
-import pytest
-from typing import Dict, Any, Optional, Callable
-from spiralflow.message import InputMessage, Message, Role
-import pytest
-import re
-from typing import Dict, Any, Optional, Callable, List
-from spiralflow.message import OutputMessage, Message, Role, ExtractionError
-import pytest
-import re
-from typing import Dict, Any, Optional, Callable, List
-from spiralflow.message import OutputMessage, Message, Role, ExtractionError
-import json
-import pytest
-from spiralflow.message import (
+    InputMessage,
+    OutputMessage,
     InputJSONMessage,
     OutputJSONMessage,
-    Role,
-    ExtractionError,
-    flatten_dict,
 )
-import pytest
-from spiralflow.message import OutputOptions, OutputMessage, Role, ExtractionError
 
 
 def test_extract_fstring_variables():
