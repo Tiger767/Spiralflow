@@ -12,7 +12,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Tiger767/Spiralflow",
     packages=setuptools.find_packages(),
-    install_requires=["regex", "openai", "pandas", "tiktoken", "pymupdf", "bs4"],
+    install_requires=["regex", "openai", "pandas", "tiktoken", "pymupdf", "bs4", "google-api-python-client"],
     classifiers=[
         "Programming Language :: Python :: 3.9",
         "License :: OSI Approved :: MIT License",
