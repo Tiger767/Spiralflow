@@ -297,13 +297,12 @@ class SmartChunker(Chunker)
 #### \_\_init\_\_
 
 ```python
-def __init__(
-    encoder,
-    chunk_size: int,
-    overlap_factor: float,
-    delimiters_tolerances_overlap: Union[None, List[Tuple[str, float,
-                                                          bool]]] = None
-) -> None
+def __init__(encoder,
+             chunk_size: int,
+             overlap_factor: float,
+             delimiters_tolerances_overlap: Optional[List[Tuple[str, float,
+                                                                bool]]] = None,
+             prefer_large_chunks: bool = True) -> None
 ```
 
 **Arguments**:
@@ -313,6 +312,7 @@ def __init__(
 - `overlap_factor`: The factor to calculate the overlap between chunks.
 - `delimiters_tolerances_overlap`: A list of tuples with delimiter,
 tolerance, and overlap values for smart chunking. Defaults to None.
+- `prefer_large_chunks`: If True, prefer chunks splitting at last occurance of a delimiter.
 
 <a id="chunking.SmartChunker.chunk"></a>
 
@@ -322,9 +322,7 @@ tolerance, and overlap values for smart chunking. Defaults to None.
 def chunk(text: str) -> List[str]
 ```
 
-Chunks text respecting delimiters, tolerances, and overlap into chunk_size
-
-(estimated token units) with overlap.
+Chunks text respecting delimiters, tolerances, and overlap into chunk_size with overlap.
 
 **Arguments**:
 
@@ -1484,7 +1482,7 @@ Dictionary containing the path to the file and its content.
 ## PDFLoader Objects
 
 ```python
-class PDFLoader(TextLoader)
+class PDFLoader(Loader)
 ```
 
 PDFLoader that uses fitz (PyMuPDF) to load PDF files.
@@ -1681,6 +1679,8 @@ Saves the memory to a file.
 def load(filepath: Optional[str] = None) -> None
 ```
 
+Loads the memory from a pickle file.
+
 **Arguments**:
 
 - `filepath`: Path to a pickle file to load the memory from. If None, the filepath passed in the constructor is used.
@@ -1725,7 +1725,7 @@ If None, no combining is done.
 
 **Returns**:
 
-Memory obtained from external memories.
+Memory obtained from external memories with metadata and scores (cosine similarity).
 
 <a id="message"></a>
 

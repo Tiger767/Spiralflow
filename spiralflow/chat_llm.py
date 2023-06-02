@@ -1,5 +1,6 @@
 from typing import Dict, List, Tuple
 import openai
+import backoff
 
 from .message import Message
 
@@ -22,6 +23,7 @@ class ChatLLM:
         self.model_params = kwargs
         self.stream = stream
 
+    @backoff.on_exception(backoff.expo, openai.error.RateLimitError, max_tries=5)
     def __call__(self, messages: List[Message]) -> Tuple[str, str, Dict]:
         """
         Generates a response using the GPT model based on the input messages.
