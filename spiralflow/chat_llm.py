@@ -1,5 +1,6 @@
 from typing import Dict, List, Tuple
 import openai
+import backoff
 
 from .message import Message
 
@@ -16,12 +17,13 @@ class ChatLLM:
         Initializes the ChatLLM class with the given parameters.
 
         :param gpt_model: GPT model to use for chat completion.
-        :param stream: Whether to use stream mode.
+        :param stream_hook: A function callled each token recieved via streaming the response.
         """
         self.gpt_model = gpt_model
         self.model_params = kwargs
         self.stream_hook = stream_hook
 
+    @backoff.on_exception(backoff.expo, openai.error.RateLimitError, max_tries=5)
     def __call__(self, messages: List[Message]) -> Tuple[str, str, Dict]:
         """
         Generates a response using the GPT model based on the input messages.
@@ -41,15 +43,14 @@ class ChatLLM:
                     role = delta["role"]
 
                 if "content" in delta:
-                    self.stream_hook(delta["content"], role, chunk)
                     full_content += delta["content"]
+                    if self.stream_hook(delta["content"], role, chunk) is False:
+                        break
             return full_content, role, chunk
         else:
             response = openai.ChatCompletion.create(
                 model=self.gpt_model, messages=messages, **self.model_params
             )
             message = response["choices"][0]["message"]
-
-            print(response)
 
             return message["content"], message["role"], response
