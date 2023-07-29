@@ -1,6 +1,5 @@
 from typing import Dict, List, Tuple
 import openai
-import backoff
 
 from .message import Message
 
@@ -11,7 +10,7 @@ class ChatLLM:
     """
 
     def __init__(
-        self, gpt_model: str = "gpt-3.5-turbo", stream=False, **kwargs
+        self, gpt_model: str = "gpt-3.5-turbo", stream_hook=None, **kwargs
     ) -> None:
         """
         Initializes the ChatLLM class with the given parameters.
@@ -21,9 +20,8 @@ class ChatLLM:
         """
         self.gpt_model = gpt_model
         self.model_params = kwargs
-        self.stream = stream
+        self.stream_hook = stream_hook
 
-    @backoff.on_exception(backoff.expo, openai.error.RateLimitError, max_tries=5)
     def __call__(self, messages: List[Message]) -> Tuple[str, str, Dict]:
         """
         Generates a response using the GPT model based on the input messages.
@@ -31,12 +29,27 @@ class ChatLLM:
         :param messages: List of messages to use for chat completion.
         :return: Response from the chat completion with content, role, and metadata.
         """
-        if self.stream:
-            raise NotImplementedError("Stream mode is not implemented yet.")
+        if self.stream_hook is not None:
+            response = openai.ChatCompletion.create(
+                model=self.gpt_model, messages=messages, stream=True, **self.model_params
+            )
+            role = None
+            full_content = ""
+            for chunk in response:
+                delta = chunk["choices"][0]["delta"]
+                if "role" in delta:
+                    role = delta["role"]
+
+                if "content" in delta:
+                    self.stream_hook(delta["content"], role, chunk)
+                    full_content += delta["content"]
+            return full_content, role, chunk
         else:
             response = openai.ChatCompletion.create(
                 model=self.gpt_model, messages=messages, **self.model_params
             )
             message = response["choices"][0]["message"]
+
+            print(response)
 
             return message["content"], message["role"], response
