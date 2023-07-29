@@ -46,6 +46,8 @@ class ChatLLM:
                     full_content += delta["content"]
                     if self.stream_hook(delta["content"], role, chunk) is False:
                         break
+                elif self.stream_hook(None, role, chunk) is False:
+                    break
             return full_content, role, chunk
         else:
             response = openai.ChatCompletion.create(
