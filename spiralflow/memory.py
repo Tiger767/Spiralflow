@@ -3,7 +3,11 @@ import pandas as pd
 import faiss
 from typing import Dict, Optional
 import pickle
-from openai.embeddings_utils import get_embedding
+import openai
+
+
+def get_embedding(text, model="text-embedding-ada-002"):
+    return openai.embeddings.create(input = [text], model=model).data[0].embedding
 
 
 def combine_on_overlap(str1: str, str2: str, threshold: float) -> Optional[str]:
