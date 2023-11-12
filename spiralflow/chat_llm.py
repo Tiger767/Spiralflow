@@ -1,6 +1,5 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 import openai
-import backoff
 
 from .message import Message
 
@@ -17,14 +16,13 @@ class ChatLLM:
         Initializes the ChatLLM class with the given parameters.
 
         :param gpt_model: GPT model to use for chat completion.
-        :param stream_hook: A function callled each token recieved via streaming the response.
+        :param stream_hook: Enables streaming to this function.
         """
         self.gpt_model = gpt_model
         self.model_params = kwargs
         self.stream_hook = stream_hook
 
-    @backoff.on_exception(backoff.expo, openai.error.RateLimitError, max_tries=5)
-    def __call__(self, messages: List[Message]) -> Tuple[str, str, Dict]:
+    def __call__(self, messages: List[Message]) -> Tuple[str, str, Union[Dict, List[Dict]]]:
         """
         Generates a response using the GPT model based on the input messages.
 
@@ -32,27 +30,26 @@ class ChatLLM:
         :return: Response from the chat completion with content, role, and metadata.
         """
         if self.stream_hook is not None:
-            response = openai.ChatCompletion.create(
+            completion = openai.chat.completions.create(
                 model=self.gpt_model, messages=messages, stream=True, **self.model_params
             )
             role = None
-            full_content = ""
-            for chunk in response:
-                delta = chunk["choices"][0]["delta"]
-                if "role" in delta:
-                    role = delta["role"]
-
-                if "content" in delta:
-                    full_content += delta["content"]
-                    if self.stream_hook(delta["content"], role, chunk) is False:
-                        break
-                elif self.stream_hook(None, role, chunk) is False:
-                    break
-            return full_content, role, chunk
+            responses = []
+            full_message = []
+            for chunk in completion:
+                responses.append(chunk)
+                if chunk.choices[0].delta.role is not None:
+                    role = chunk.choices[0].delta.role
+                content = chunk.choices[0].delta.content
+                self.stream_hook(content, role, chunk)
+                if content is not None:
+                    full_message.append(content)
+            message = "".join(full_message)
+            return message, role, responses
         else:
-            response = openai.ChatCompletion.create(
+            response = openai.chat.completions.create(
                 model=self.gpt_model, messages=messages, **self.model_params
             )
-            message = response["choices"][0]["message"]
+            message = response.choices[0].message
 
-            return message["content"], message["role"], response
+            return message.content, message.role, response
